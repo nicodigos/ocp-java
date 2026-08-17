@@ -1,0 +1,14 @@
+{
+  "name": "java-21-review-lab",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "engines": {
+    "node": ">=22.5"
+  },
+  "dependencies": {
+    "pg": "^8.23.0"
+  }
+}

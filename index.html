@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Interactive chapter review for the OCP Java SE 21 Developer exam." />
+    <title>Java 21 Review Lab</title>
+    <link rel="stylesheet" href="styles.css?v=8" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="site-header">
+        <a class="brand" href="/" aria-label="Java 21 Review Lab home"><span>&gt;_</span> Java 21 Review Lab</a>
+        <div class="header-actions">
+          <label class="chapter-picker">
+            <span>Chapter</span>
+            <select id="chapter-select" aria-label="Select chapter"></select>
+          </label>
+          <button id="reset-progress" class="ghost-button">Reset</button>
+        </div>
+      </header>
+
+      <main>
+        <section class="intro">
+          <div>
+            <p id="chapter-eyebrow" class="eyebrow">Chapter 1</p>
+            <h1 id="chapter-title">Building Blocks</h1>
+          </div>
+          <div class="overall-card">
+            <strong id="overall-percent">0%</strong>
+            <span id="overall-detail">0 of 338 answered</span>
+          </div>
+        </section>
+
+        <section class="chapter-progress" aria-label="Chapter progress">
+          <div class="progress-track"><span id="chapter-bar"></span></div>
+          <span id="chapter-detail">Question 1 of 23</span>
+        </section>
+
+        <section id="quiz-card" class="quiz-card" aria-live="polite">
+          <div class="loading">Loading review questions…</div>
+        </section>
+
+        <footer class="quiz-footer">
+          <button id="previous" class="ghost-button">← Previous</button>
+          <div id="question-dots" class="question-dots" aria-label="Question navigation"></div>
+          <button id="next" class="primary-button">Next question →</button>
+        </footer>
+      </main>
+    </div>
+    <script src="app.js?v=10" defer></script>
+  </body>
+</html>

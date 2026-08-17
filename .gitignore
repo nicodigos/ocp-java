@@ -1,0 +1,9 @@
+.env
+java21-review.sqlite
+java21-review.sqlite-shm
+java21-review.sqlite-wal
+node_modules/
+tmp/
+*.pdf
+__pycache__/
+*.pyc

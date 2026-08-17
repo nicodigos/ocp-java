@@ -1,0 +1,86 @@
+[
+  {
+    "chapter": 1,
+    "title": "Building Blocks",
+    "questionCount": 23,
+    "file": "chapter-01.md"
+  },
+  {
+    "chapter": 2,
+    "title": "Operators",
+    "questionCount": 20,
+    "file": "chapter-02.md"
+  },
+  {
+    "chapter": 3,
+    "title": "Making Decisions",
+    "questionCount": 30,
+    "file": "chapter-03.md"
+  },
+  {
+    "chapter": 4,
+    "title": "Core APIs",
+    "questionCount": 22,
+    "file": "chapter-04.md"
+  },
+  {
+    "chapter": 5,
+    "title": "Methods",
+    "questionCount": 21,
+    "file": "chapter-05.md"
+  },
+  {
+    "chapter": 6,
+    "title": "Class Design",
+    "questionCount": 26,
+    "file": "chapter-06.md"
+  },
+  {
+    "chapter": 7,
+    "title": "Beyond Classes",
+    "questionCount": 30,
+    "file": "chapter-07.md"
+  },
+  {
+    "chapter": 8,
+    "title": "Lambdas and Functional Interfaces",
+    "questionCount": 21,
+    "file": "chapter-08.md"
+  },
+  {
+    "chapter": 9,
+    "title": "Collections and Generics",
+    "questionCount": 23,
+    "file": "chapter-09.md"
+  },
+  {
+    "chapter": 10,
+    "title": "Streams",
+    "questionCount": 21,
+    "file": "chapter-10.md"
+  },
+  {
+    "chapter": 11,
+    "title": "Exceptions and Localization",
+    "questionCount": 26,
+    "file": "chapter-11.md"
+  },
+  {
+    "chapter": 12,
+    "title": "Modules",
+    "questionCount": 25,
+    "file": "chapter-12.md"
+  },
+  {
+    "chapter": 13,
+    "title": "Concurrency",
+    "questionCount": 25,
+    "file": "chapter-13.md"
+  },
+  {
+    "chapter": 14,
+    "title": "I/O",
+    "questionCount": 25,
+    "file": "chapter-14.md"
+  }
+]
