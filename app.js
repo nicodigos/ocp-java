@@ -514,6 +514,20 @@ function initMenu() {
   document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenu(); });
 }
 
+function initFlashcardKeyboard() {
+  document.addEventListener("keydown", (event) => {
+    if ((event.code !== "Space" && event.key !== " ") || event.repeat) return;
+    if (flash.activeSection !== "java-cards" && flash.activeSection !== "g1-cards") return;
+    const target = event.target instanceof Element ? event.target : null;
+    if (target?.closest("input, select, textarea, a, [contenteditable='true'], button:not(.flashcard-scene)")) return;
+    const collection = flash.activeSection === "java-cards" ? "java" : "g1";
+    const scene = el(`${collection}-flashcards`).querySelector(".flashcard-scene");
+    if (!scene) return;
+    event.preventDefault();
+    scene.click();
+  });
+}
+
 async function init() {
   try {
     const response = await fetch(`assets/review-tests/index.json?v=${CONTENT_VERSION}`);
@@ -527,6 +541,7 @@ async function init() {
 }
 
 initMenu();
+initFlashcardKeyboard();
 el("previous").addEventListener("click", () => goToQuestion(state.questionIndex - 1));
 el("next").addEventListener("click", () => {
   if (state.questionIndex < state.questions.length - 1) goToQuestion(state.questionIndex + 1);
