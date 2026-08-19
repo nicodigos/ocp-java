@@ -6,7 +6,7 @@ const state = {
   selections: new Set(),
   progress: {},
 };
-const CONTENT_VERSION = "5";
+const CONTENT_VERSION = "10";
 
 const flash = {
   activeSection: "review",
@@ -292,6 +292,10 @@ function renderRich(value) {
     ? `<code>${escapeHtml(part.slice(1, -1))}</code>` : escapeHtml(part)).join("");
 }
 
+function javaCardContext(card) {
+  return card.context || "";
+}
+
 function parseFlashcardMarkdown(markdown, collection) {
   const decks = [];
   let deck = null;
@@ -367,6 +371,7 @@ function renderFlashcard(collection) {
   const cardPosition = remaining.findIndex((item) => item.id === card.id) + 1;
   const current = data.progress[progressKey(deck.id, card.id)] || { mastery: 0 };
   const isRoadSign = collection === "g1" && deck.id === "signs";
+  const context = collection === "java" ? javaCardContext(card, deck) : "";
   const image = card.image ? `<img class="flashcard-image${isRoadSign ? " sign-image" : ""}" src="${escapeHtml(card.image)}" alt="Official Ontario driver's handbook illustration">` : "";
   mount.innerHTML = `
     <div class="deck-status"><span>${deck.cards.length} cards · ${seen} seen · ${learned} learned</span><span>Level ${Number(current.mastery) || 0}/5</span></div>
@@ -374,7 +379,7 @@ function renderFlashcard(collection) {
       <span class="flashcard-inner ${data.flipped ? "flipped" : ""}">
         <span class="flashcard-face flashcard-front${isRoadSign ? " sign-front" : ""}">
           ${isRoadSign ? image : ""}
-          ${isRoadSign ? "" : `<span class="card-question">${renderRich(card.front)}</span>`}
+          ${isRoadSign ? "" : `<span class="card-front-copy"><span class="card-question">${renderRich(card.front)}</span>${context ? `<span class="card-context">${renderRich(context)}</span>` : ""}</span>`}
           <span class="flip-hint">Click or press Space to reveal</span>
         </span>
         <span class="flashcard-face flashcard-back">
@@ -463,13 +468,18 @@ function renderDeckPicker(collection) {
 }
 
 async function initFlashcards() {
-  const [javaResponse, g1Response] = await Promise.all([
+  const [javaResponse, g1Response, javaContextResponse] = await Promise.all([
     fetch(`assets/flashcards/ocp-java-21-flashcards.md?v=${CONTENT_VERSION}`),
     fetch(`Ontario_G1_Flashcards.md?v=${CONTENT_VERSION}`),
+    fetch(`assets/flashcards/ocp-java-21-contexts.json?v=${CONTENT_VERSION}`),
   ]);
-  if (!javaResponse.ok || !g1Response.ok) throw new Error("One of the flashcard banks could not be loaded");
+  if (!javaResponse.ok || !g1Response.ok || !javaContextResponse.ok) throw new Error("One of the flashcard banks could not be loaded");
   flash.collections.java.decks = parseFlashcardMarkdown(await javaResponse.text(), "java");
   flash.collections.g1.decks = parseFlashcardMarkdown(await g1Response.text(), "g1");
+  const javaContexts = await javaContextResponse.json();
+  for (const deck of flash.collections.java.decks) {
+    for (const card of deck.cards) card.context = javaContexts[card.id] || "";
+  }
   await Promise.all([loadFlashProgress("java"), loadFlashProgress("g1")]);
   for (const collection of ["java", "g1"]) { renderDeckPicker(collection); renderFlashcard(collection); }
 }
