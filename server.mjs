@@ -33,6 +33,8 @@ const mimeTypes = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  ".jpeg": "image/jpeg",
+  ".jpg": "image/jpeg",
   ".md": "text/markdown; charset=utf-8",
   ".png": "image/png",
   ".svg": "image/svg+xml",
@@ -64,6 +66,17 @@ function validateAnswer(value) {
   return { chapter, question, selected, correct };
 }
 
+function validateFlashRating(value) {
+  const collection = String(value.collection || "");
+  const deck = String(value.deck || "");
+  const cardId = String(value.cardId || "");
+  const rating = String(value.rating || "");
+  if (!/^(java|g1)$/.test(collection)) throw new Error("Invalid collection");
+  if (!/^[\w-]{1,40}$/.test(deck) || !/^[\w-]{1,60}$/.test(cardId)) throw new Error("Invalid card identifier");
+  if (!/^(again|known)$/.test(rating)) throw new Error("Invalid rating");
+  return { collection, deck, cardId, rating };
+}
+
 function progressFromRows(rows) {
   const progress = {};
   for (const row of rows) {
@@ -78,6 +91,48 @@ function progressFromRows(rows) {
 }
 
 async function handleApi(request, response, pathname) {
+  if (pathname === "/api/flashcards/progress" && request.method === "GET") {
+    const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+    const collection = url.searchParams.get("collection");
+    if (!/^(java|g1)$/.test(collection || "")) throw new Error("Invalid collection");
+    const result = await pool.query(
+      "SELECT deck, card_id, mastery, seen_count, due_order, learned FROM public.flashcard_progress WHERE collection = $1",
+      [collection]
+    );
+    const progress = Object.fromEntries(result.rows.map((row) => [`${row.deck}:${row.card_id}`, {
+      mastery: row.mastery, seenCount: row.seen_count, dueOrder: Number(row.due_order), learned: row.learned,
+    }]));
+    json(response, 200, progress);
+    return true;
+  }
+  if (pathname === "/api/flashcards/rate" && request.method === "POST") {
+    const item = validateFlashRating(await readJson(request));
+    const learned = item.rating === "known";
+    const result = await pool.query(
+      `INSERT INTO public.flashcard_progress (collection, deck, card_id, mastery, seen_count, due_order, learned, updated_at)
+       VALUES ($1, $2, $3, $4, 1, 1, $5, now())
+       ON CONFLICT (collection, deck, card_id) DO UPDATE SET
+         mastery = excluded.mastery,
+         seen_count = public.flashcard_progress.seen_count + 1,
+         due_order = public.flashcard_progress.due_order + 1,
+         learned = excluded.learned,
+         updated_at = now()
+       RETURNING mastery, seen_count, due_order, learned`,
+      [item.collection, item.deck, item.cardId, learned ? 3 : 0, learned]
+    );
+    const row = result.rows[0];
+    json(response, 200, { mastery: row.mastery, seenCount: row.seen_count, dueOrder: Number(row.due_order), learned: row.learned });
+    return true;
+  }
+  if (pathname === "/api/flashcards/progress" && request.method === "DELETE") {
+    const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
+    const collection = url.searchParams.get("collection");
+    const deck = url.searchParams.get("deck");
+    if (!/^(java|g1)$/.test(collection || "") || !/^[\w-]{1,40}$/.test(deck || "")) throw new Error("Invalid deck");
+    await pool.query("DELETE FROM public.flashcard_progress WHERE collection = $1 AND deck = $2", [collection, deck]);
+    json(response, 200, { cleared: true });
+    return true;
+  }
   if (pathname === "/api/progress" && request.method === "GET") {
     const result = await pool.query("SELECT chapter, question, selected, correct FROM public.answers ORDER BY chapter, question");
     json(response, 200, progressFromRows(result.rows));

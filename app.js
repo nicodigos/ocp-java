@@ -6,7 +6,15 @@ const state = {
   selections: new Set(),
   progress: {},
 };
-const CONTENT_VERSION = "3";
+const CONTENT_VERSION = "5";
+
+const flash = {
+  activeSection: "review",
+  collections: {
+    java: { decks: [], deckIndex: 0, cardId: null, flipped: false, progress: {}, clock: 0 },
+    g1: { decks: [], deckIndex: 0, cardId: null, flipped: false, progress: {}, clock: 0 },
+  },
+};
 
 const el = (id) => document.getElementById(id);
 
@@ -258,18 +266,257 @@ function goToQuestion(index) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
+function splitTableRow(line) {
+  const cells = [];
+  let value = "";
+  for (let i = 1; i < line.length - 1; i += 1) {
+    if (line[i] === "\\" && line[i + 1] === "|") { value += "|"; i += 1; }
+    else if (line[i] === "|") { cells.push(value.trim()); value = ""; }
+    else value += line[i];
+  }
+  cells.push(value.trim());
+  return cells;
+}
+
+function plainMarkdown(value) {
+  return value.replace(/<br\s*\/?\s*>/gi, " ").replace(/<img\b[^>]*>/gi, "").replace(/\*\*(.*?)\*\*/g, "$1").trim();
+}
+
+function imageFrom(value) {
+  const match = value.match(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/i);
+  return match && /^(?:mto_g1_assets|assets)\/[\w./-]+$/.test(match[1]) ? match[1] : "";
+}
+
+function renderRich(value) {
+  return plainMarkdown(value).split(/(`[^`]+`)/g).map((part) => part.startsWith("`") && part.endsWith("`")
+    ? `<code>${escapeHtml(part.slice(1, -1))}</code>` : escapeHtml(part)).join("");
+}
+
+function parseFlashcardMarkdown(markdown, collection) {
+  const decks = [];
+  let deck = null;
+  for (const line of markdown.split(/\r?\n/)) {
+    const heading = line.match(/^##\s+(.+)$/)?.[1];
+    if (heading) {
+      if (collection === "java" && !/^Chapter \d+\s+-/.test(heading)) { deck = null; continue; }
+      if (collection === "g1" && !/^Part [AB]\s+—/.test(heading)) { deck = null; continue; }
+      deck = {
+        id: collection === "java" ? heading.match(/^Chapter (\d+)/)[1] : heading.startsWith("Part A") ? "rules" : "signs",
+        title: heading.replace(/^Chapter \d+\s+-\s*/, "").replace(/^Part [AB]\s+—\s+/, ""), cards: [],
+      };
+      decks.push(deck);
+      continue;
+    }
+    if (!deck || !/^\|\s*(?:\d+|[RS]\d{3})\s*\|/.test(line)) continue;
+    const cells = splitTableRow(line);
+    if (collection === "java") deck.cards.push({ id: `${deck.id}-${cells[0]}`, front: cells[1], back: cells[2], note: cells[3], image: "" });
+    else if (deck.id === "rules") deck.cards.push({ id: cells[0], topic: cells[1], front: cells[2], back: cells[3], note: "", image: imageFrom(cells[3]) });
+    else deck.cards.push({ id: cells[0], front: "", back: cells[2], note: "", image: imageFrom(cells[1]) });
+  }
+  return decks;
+}
+
+function progressKey(deckId, cardId) { return `${deckId}:${cardId}`; }
+
+async function loadFlashProgress(collection) {
+  const data = flash.collections[collection];
+  const response = await fetch(`/api/flashcards/progress?collection=${collection}`);
+  if (!response.ok) throw new Error(`Could not load ${collection.toUpperCase()} flashcard progress`);
+  data.progress = await response.json();
+  data.clock = Math.max(0, ...Object.values(data.progress).map((item) => Number(item.dueOrder) || 0));
+}
+
+function currentFlashDeck(collection) { return flash.collections[collection].decks[flash.collections[collection].deckIndex]; }
+
+function remainingFlashcards(collection, deck = currentFlashDeck(collection)) {
+  const data = flash.collections[collection];
+  return deck.cards.filter((card) => data.progress[progressKey(deck.id, card.id)]?.learned !== true);
+}
+
+function chooseFlashcard(collection) {
+  const data = flash.collections[collection];
+  const deck = currentFlashDeck(collection);
+  if (!deck?.cards.length) return null;
+  const available = remainingFlashcards(collection, deck);
+  const ranked = available.map((card, index) => {
+    const saved = data.progress[progressKey(deck.id, card.id)] || {};
+    return { card, index, due: Number(saved.dueOrder) || 0, mastery: Number(saved.mastery) || 0 };
+  }).filter(({ card }) => card.id !== data.cardId || available.length === 1)
+    .sort((a, b) => a.due - b.due || a.mastery - b.mastery || a.index - b.index);
+  return ranked[0]?.card || null;
+}
+
+function renderFlashcard(collection) {
+  const data = flash.collections[collection];
+  const deck = currentFlashDeck(collection);
+  const mount = el(`${collection}-flashcards`);
+  if (!deck) return;
+  const remaining = remainingFlashcards(collection, deck);
+  let card = remaining.find((item) => item.id === data.cardId);
+  if (!card) { card = chooseFlashcard(collection); data.cardId = card?.id; }
+  const records = deck.cards.map((item) => data.progress[progressKey(deck.id, item.id)] || {});
+  const seen = records.filter((item) => item.seenCount).length;
+  const learned = records.filter((item) => item.learned === true).length;
+  if (!card) {
+    mount.innerHTML = `
+      <div class="deck-status"><span>${deck.cards.length} cards · ${seen} seen · ${learned} learned</span><span>0 remaining</span></div>
+      <div class="deck-complete"><strong>Deck complete</strong><span>All cards are learned. Reset the deck to study them again.</span><button class="deck-reset ghost-button">Reset deck</button></div>`;
+    mount.querySelector(".deck-reset").addEventListener("click", () => resetFlashDeck(collection));
+    return;
+  }
+  const cardPosition = remaining.findIndex((item) => item.id === card.id) + 1;
+  const current = data.progress[progressKey(deck.id, card.id)] || { mastery: 0 };
+  const isRoadSign = collection === "g1" && deck.id === "signs";
+  const image = card.image ? `<img class="flashcard-image${isRoadSign ? " sign-image" : ""}" src="${escapeHtml(card.image)}" alt="Official Ontario driver's handbook illustration">` : "";
+  mount.innerHTML = `
+    <div class="deck-status"><span>${deck.cards.length} cards · ${seen} seen · ${learned} learned</span><span>Level ${Number(current.mastery) || 0}/5</span></div>
+    <button class="flashcard-scene" type="button" aria-label="Flip flashcard" aria-pressed="${data.flipped}">
+      <span class="flashcard-inner ${data.flipped ? "flipped" : ""}">
+        <span class="flashcard-face flashcard-front${isRoadSign ? " sign-front" : ""}">
+          ${isRoadSign ? image : ""}
+          ${isRoadSign ? "" : `<span class="card-question">${renderRich(card.front)}</span>`}
+          <span class="flip-hint">Click or press Space to reveal</span>
+        </span>
+        <span class="flashcard-face flashcard-back">
+          <span class="card-answer">${renderRich(card.back)}</span>
+          ${collection === "g1" && deck.id === "rules" ? image : ""}
+          ${card.note ? `<span class="card-note">${renderRich(card.note)}</span>` : ""}
+        </span>
+      </span>
+    </button>
+    <div class="card-navigation" aria-label="Browse cards without rating">
+      <button class="nav-button" data-move="-1">← Previous</button>
+      <span class="card-counter">${cardPosition} of ${remaining.length} remaining</span>
+      <button class="nav-button" data-move="1">Next →</button>
+    </div>
+    <div class="flashcard-actions">
+      <button class="rating-button learning" data-rating="again"><span>↻</span> Still learning</button>
+      <button class="rating-button known" data-rating="known"><span>✓</span> I know this</button>
+      <button class="deck-reset ghost-button">Reset deck</button>
+    </div>`;
+  mount.querySelector(".flashcard-scene").addEventListener("click", () => {
+    data.flipped = !data.flipped;
+    mount.querySelector(".flashcard-inner").classList.toggle("flipped", data.flipped);
+    mount.querySelector(".flashcard-scene").setAttribute("aria-pressed", String(data.flipped));
+  });
+  mount.querySelectorAll("[data-rating]").forEach((button) => button.addEventListener("click", () => rateFlashcard(collection, button.dataset.rating)));
+  mount.querySelectorAll("[data-move]").forEach((button) => button.addEventListener("click", () => moveFlashcard(collection, Number(button.dataset.move))));
+  mount.querySelector(".deck-reset").addEventListener("click", () => resetFlashDeck(collection));
+}
+
+function moveFlashcard(collection, direction) {
+  const data = flash.collections[collection];
+  const deck = currentFlashDeck(collection);
+  const remaining = remainingFlashcards(collection, deck);
+  if (!remaining.length) return;
+  const currentIndex = Math.max(0, remaining.findIndex((card) => card.id === data.cardId));
+  const nextIndex = (currentIndex + direction + remaining.length) % remaining.length;
+  data.cardId = remaining[nextIndex].id;
+  data.flipped = false;
+  renderFlashcard(collection);
+}
+
+async function rateFlashcard(collection, rating) {
+  const data = flash.collections[collection];
+  const deck = currentFlashDeck(collection);
+  const key = progressKey(deck.id, data.cardId);
+  const mount = el(`${collection}-flashcards`);
+  mount.querySelectorAll("[data-rating]").forEach((button) => { button.disabled = true; });
+  try {
+    const response = await fetch("/api/flashcards/rate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ collection, deck: deck.id, cardId: data.cardId, rating }),
+    });
+    if (!response.ok) throw new Error("Progress could not be saved");
+    data.progress[key] = await response.json();
+    data.cardId = chooseFlashcard(collection)?.id;
+    data.flipped = false;
+    renderFlashcard(collection);
+  } catch (error) {
+    mount.querySelectorAll("[data-rating]").forEach((button) => { button.disabled = false; });
+    alert(error.message);
+  }
+}
+
+async function resetFlashDeck(collection) {
+  const data = flash.collections[collection];
+  const deck = currentFlashDeck(collection);
+  if (!confirm(`Reset all progress for ${deck.title}?`)) return;
+  try {
+    const response = await fetch(`/api/flashcards/progress?collection=${collection}&deck=${encodeURIComponent(deck.id)}`, { method: "DELETE" });
+    if (!response.ok) throw new Error("Deck could not be reset");
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+  for (const card of deck.cards) delete data.progress[progressKey(deck.id, card.id)];
+  data.cardId = null; data.flipped = false; renderFlashcard(collection);
+}
+
+function renderDeckPicker(collection) {
+  const data = flash.collections[collection];
+  const select = el(`${collection}-deck-select`);
+  select.innerHTML = data.decks.map((deck, index) => `<option value="${index}">${collection === "java" ? `${String(deck.id).padStart(2, "0")} — ` : ""}${escapeHtml(deck.title)} · ${deck.cards.length}</option>`).join("");
+  select.value = String(data.deckIndex);
+  select.onchange = () => { data.deckIndex = Number(select.value); data.cardId = null; data.flipped = false; renderFlashcard(collection); };
+}
+
+async function initFlashcards() {
+  const [javaResponse, g1Response] = await Promise.all([
+    fetch(`assets/flashcards/ocp-java-21-flashcards.md?v=${CONTENT_VERSION}`),
+    fetch(`Ontario_G1_Flashcards.md?v=${CONTENT_VERSION}`),
+  ]);
+  if (!javaResponse.ok || !g1Response.ok) throw new Error("One of the flashcard banks could not be loaded");
+  flash.collections.java.decks = parseFlashcardMarkdown(await javaResponse.text(), "java");
+  flash.collections.g1.decks = parseFlashcardMarkdown(await g1Response.text(), "g1");
+  await Promise.all([loadFlashProgress("java"), loadFlashProgress("g1")]);
+  for (const collection of ["java", "g1"]) { renderDeckPicker(collection); renderFlashcard(collection); }
+}
+
+function closeMenu() {
+  el("section-menu").hidden = true;
+  el("menu-trigger").setAttribute("aria-expanded", "false");
+}
+
+function switchSection(section) {
+  flash.activeSection = section;
+  for (const name of ["review", "java-cards", "g1-cards"]) {
+    const sectionElement = el(`${name}-section`);
+    sectionElement.hidden = name !== section;
+    sectionElement.classList.toggle("active", name === section);
+  }
+  el("quiz-header-actions").hidden = section !== "review";
+  document.querySelectorAll("#section-menu [data-section]").forEach((button) => button.classList.toggle("active", button.dataset.section === section));
+  closeMenu();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initMenu() {
+  el("menu-trigger").addEventListener("click", (event) => {
+    event.stopPropagation();
+    const menu = el("section-menu");
+    menu.hidden = !menu.hidden;
+    el("menu-trigger").setAttribute("aria-expanded", String(!menu.hidden));
+  });
+  document.querySelectorAll("#section-menu [data-section]").forEach((button) => button.addEventListener("click", () => switchSection(button.dataset.section)));
+  document.addEventListener("click", (event) => { if (!event.target.closest(".brand-wrap")) closeMenu(); });
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeMenu(); });
+}
+
 async function init() {
   try {
     const response = await fetch(`assets/review-tests/index.json?v=${CONTENT_VERSION}`);
     state.manifest = await response.json();
     await loadSavedProgress();
     renderProgress();
-    await loadChapter(0);
+    await Promise.all([loadChapter(0), initFlashcards()]);
   } catch (error) {
     el("quiz-card").innerHTML = `<div class="error">Unable to start the review lab: ${escapeHtml(error.message)}</div>`;
   }
 }
 
+initMenu();
 el("previous").addEventListener("click", () => goToQuestion(state.questionIndex - 1));
 el("next").addEventListener("click", () => {
   if (state.questionIndex < state.questions.length - 1) goToQuestion(state.questionIndex + 1);

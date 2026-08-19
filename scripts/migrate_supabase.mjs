@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import pg from "pg";
 
 function parseEnv(text) {
@@ -20,10 +20,9 @@ const env = parseEnv(await readFile(".env", "utf8"));
 if (!env.DATABASE_URL) throw new Error("DATABASE_URL is missing from .env");
 const databaseUrl = new URL(env.DATABASE_URL);
 
-const sql = await readFile(
-  "supabase/migrations/20260817120000_create_review_answers.sql",
-  "utf8"
-);
+const migrationFiles = (await readdir("supabase/migrations"))
+  .filter((file) => file.endsWith(".sql"))
+  .sort();
 const client = new pg.Client({
   host: databaseUrl.hostname,
   port: Number(databaseUrl.port || 5432),
@@ -36,12 +35,14 @@ const client = new pg.Client({
 await client.connect();
 try {
   await client.query("begin");
-  await client.query(sql);
+  for (const file of migrationFiles) {
+    await client.query(await readFile(`supabase/migrations/${file}`, "utf8"));
+  }
   await client.query("commit");
   const result = await client.query(
     "select count(*)::int as count from public.answers"
   );
-  console.log(`Supabase migration applied; ${result.rows[0].count} saved answer(s)`);
+  console.log(`Supabase migrations applied; ${result.rows[0].count} saved answer(s)`);
 } catch (error) {
   await client.query("rollback");
   throw error;

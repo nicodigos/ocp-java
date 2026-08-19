@@ -5,13 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Interactive chapter review for the OCP Java SE 21 Developer exam." />
     <title>Java 21 Review Lab</title>
-    <link rel="stylesheet" href="styles.css?v=8" />
+    <link rel="stylesheet" href="styles.css?v=16" />
   </head>
   <body>
     <div class="app-shell">
       <header class="site-header">
-        <a class="brand" href="/" aria-label="Java 21 Review Lab home"><span>&gt;_</span> Java 21 Review Lab</a>
-        <div class="header-actions">
+        <div class="brand-wrap">
+          <button id="menu-trigger" class="menu-trigger" aria-expanded="false" aria-controls="section-menu" aria-label="Open study sections"><span>&gt;_</span></button>
+          <span class="brand-label">Study Lab</span>
+          <nav id="section-menu" class="section-menu" aria-label="Study sections" hidden>
+            <button data-section="review" class="active"><span>01</span> Java review questions</button>
+            <button data-section="java-cards"><span>02</span> Java flashcards</button>
+            <button data-section="g1-cards"><span>03</span> Ontario G1 flashcards</button>
+          </nav>
+        </div>
+        <div id="quiz-header-actions" class="header-actions">
           <label class="chapter-picker">
             <span>Chapter</span>
             <select id="chapter-select" aria-label="Select chapter"></select>
@@ -21,7 +29,8 @@
       </header>
 
       <main>
-        <section class="intro">
+        <section id="review-section" class="study-section active">
+        <div class="intro">
           <div>
             <p id="chapter-eyebrow" class="eyebrow">Chapter 1</p>
             <h1 id="chapter-title">Building Blocks</h1>
@@ -30,7 +39,7 @@
             <strong id="overall-percent">0%</strong>
             <span id="overall-detail">0 of 338 answered</span>
           </div>
-        </section>
+        </div>
 
         <section class="chapter-progress" aria-label="Chapter progress">
           <div class="progress-track"><span id="chapter-bar"></span></div>
@@ -46,8 +55,33 @@
           <div id="question-dots" class="question-dots" aria-label="Question navigation"></div>
           <button id="next" class="primary-button">Next question →</button>
         </footer>
+        </section>
+
+        <section id="java-cards-section" class="study-section flashcard-section" hidden>
+          <div class="flashcard-heading">
+            <div>
+              <p class="eyebrow">OCP Java SE 21</p>
+              <h1>Chapter flashcards</h1>
+              <p class="section-copy">Exam traps, rules, and details worth remembering.</p>
+            </div>
+            <label class="deck-picker"><span>Deck</span><select id="java-deck-select" aria-label="Select Java chapter deck"></select></label>
+          </div>
+          <div id="java-flashcards" class="flashcard-mount"><div class="loading">Loading Java flashcards…</div></div>
+        </section>
+
+        <section id="g1-cards-section" class="study-section flashcard-section" hidden>
+          <div class="flashcard-heading">
+            <div>
+              <p class="eyebrow">Ontario G1</p>
+              <h1>Driving flashcards</h1>
+              <p class="section-copy">Rules of the road and official handbook signs.</p>
+            </div>
+            <label class="deck-picker"><span>Deck</span><select id="g1-deck-select" aria-label="Select Ontario G1 deck"></select></label>
+          </div>
+          <div id="g1-flashcards" class="flashcard-mount"><div class="loading">Loading G1 flashcards…</div></div>
+        </section>
       </main>
     </div>
-    <script src="app.js?v=10" defer></script>
+    <script src="app.js?v=21" defer></script>
   </body>
 </html>
