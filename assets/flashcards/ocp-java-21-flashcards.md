@@ -31,11 +31,11 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 23 | May fields and methods appear in any order inside a class? | Yes. | Declaration order freedom does not change runtime initialization order. |
 | 24 | Which primitive types are integral? | `byte`, `short`, `int`, `long`, and `char`. | `char` is unsigned; the others are signed. |
 | 25 | Which literal suffixes matter for `long` and `float`? | `L` marks a long literal and `F` marks a float literal. | Decimal literals are `double` by default. |
-| 26 | How do primitive and reference variables differ? | A primitive stores its value directly; a reference stores a reference and can be `null`. | Calling an instance method through `null` throws at runtime. |
-| 27 | How do array brackets affect multi-variable declarations? | Brackets on the type apply to all variables; brackets after a name apply only to that variable. | In `int a[], b`, only `a` is an array. |
-| 28 | What does text-block closing-delimiter placement affect? | Incidental indentation and whether a trailing newline is included. | A delimiter on its own line generally preserves a final line terminator. |
-| 29 | What is the inferred type of `var`? | The initializer's compile-time type, fixed at compilation. | It is not necessarily the most general type that could hold the value. |
-| 30 | How do reachability and scope differ? | Scope controls name access; reachability controls whether an object can still be reached. | Reassignment can make an object unreachable while the variable remains in scope. |
+| 101 | What relationships, labels, and structure does the book show for compiling with packages? | <img src="assets/ocp-figures/figure-1-1.png" alt="Figure 1.1: Compiling with packages"> Figure 1.1 — Compiling with packages. | |
+| 102 | What relationships, labels, and structure does the book show for compiling with packages and directories? | <img src="assets/ocp-figures/figure-1-2.png" alt="Figure 1.2: Compiling with packages and directories"> Figure 1.2 — Compiling with packages and directories. | |
+| 103 | What relationships, labels, and structure does the book show for text block structure? | <img src="assets/ocp-figures/figure-1-3.png" alt="Figure 1.3: Text block structure"> Figure 1.3 — Text block structure. | |
+| 104 | What relationships, labels, and structure does the book show for reference reachability after line 5? | <img src="assets/ocp-figures/figure-1-4.png" alt="Figure 1.4: Reference reachability after line 5"> Figure 1.4 — Reference reachability after line 5. | |
+| 105 | What relationships, labels, and structure does the book show for reference reachability after line 7? | <img src="assets/ocp-figures/figure-1-5.png" alt="Figure 1.5: Reference reachability after line 7"> Figure 1.5 — Reference reachability after line 7. | |
 
 ## Chapter 2 - Operators
 
@@ -69,8 +69,8 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 26 | Which operands accept bitwise operators? | Integral primitives; `&`, `|`, and `^` also accept booleans. | Floating-point operands are invalid. |
 | 27 | Why does `1 < x < 10` not compile? | The first comparison returns `boolean`, which cannot be compared with `10`. | Java does not support chained relational comparisons. |
 | 28 | What value does an assignment expression produce? | The converted value assigned to the left side. | This enables chaining and can conceal side effects. |
-| 29 | How does `+=` act on a `String`? | It concatenates and assigns a new string. | The right operand is converted to text unless parentheses force earlier arithmetic. |
-| 30 | How do evaluation order and precedence differ? | Operands evaluate left to right; precedence determines grouping. | Short-circuit operators may skip the right operand. |
+| 101 | What relationships, labels, and structure does the book show for parts of a java operation? | <img src="assets/ocp-figures/figure-2-1.png" alt="Figure 2.1: Parts of a Java operation"> Figure 2.1 — Parts of a Java operation. | |
+| 102 | What relationships, labels, and structure does the book show for logical truth tables for &, \|, and ^? | <img src="assets/ocp-figures/figure-2-2.png" alt="Figure 2.2: Logical truth tables for `&`, `\|`, and `^`"> Figure 2.2 — Logical truth tables for `&`, `|`, and `^`. | |
 
 ## Chapter 3 - Making Decisions
 
@@ -93,19 +93,19 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 15 | What does `break` target? | The nearest loop or switch, or a matching labeled statement. | `continue` targets loops only, not switches. |
 | 16 | What does labeled `continue` do? | Starts the next iteration of the named enclosing loop. | The label must identify an iteration statement. |
 | 17 | When may braces be omitted from an `if` or loop? | When the controlled body is exactly one statement. | Indentation never creates a block. |
-| 18 | Which reference-like values work in a traditional switch? | `String`, enums, and compatible wrappers such as `Integer`. | `boolean`, `long`, `float`, and `double` do not. |
-| 19 | May multiple case labels share one branch? | Yes, using comma-separated labels. | Duplicate equivalent labels are still illegal. |
-| 20 | How do arrow and colon switch branches differ? | Arrow branches do not fall through; colon branches can. | Do not apply fall-through reasoning to arrow syntax. |
-| 21 | What makes a switch expression exhaustive? | It handles every possible value, often with `default` or a complete enum/sealed set. | Every expression must be exhaustive. |
-| 22 | What happens when a traditional switch selector is `null`? | It normally throws `NullPointerException`. | Pattern switches can explicitly include `case null`. |
-| 23 | What is pattern dominance in switch? | An earlier pattern matches every value a later pattern could match. | A broad type before its subtype makes the subtype unreachable. |
-| 24 | What must all switch-expression result branches provide? | Values with a compatible resulting type. | A block branch uses `yield`, not `return`, to supply the value. |
-| 25 | What is the key execution difference between `while` and `do/while`? | `while` tests first; `do/while` tests after the body. | `do/while` runs at least once and requires a trailing semicolon. |
-| 26 | Can a basic `for` initializer declare multiple variables? | Yes, when they share one declared type. | Unrelated types cannot appear in the same declaration. |
-| 27 | What happens when an enhanced-for loop variable is reassigned? | Only the local loop variable changes. | It does not replace the array or collection element. |
-| 28 | Where may a label be placed? | Immediately before a statement, commonly a loop or block. | `continue label` requires that label to mark a loop. |
-| 29 | How do unlabeled `break` and `continue` differ? | `break` exits the nearest loop/switch; `continue` advances the nearest loop. | `continue` cannot target a switch alone. |
-| 30 | What does `return` do inside nested control flow? | It exits the entire method and optionally supplies a value. | It does not merely leave the nearest loop. |
+| 101 | How is the if statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-1.png" alt="Figure 3.1: Structure of an `if` statement"> Figure 3.1 — Structure of an `if` statement. | |
+| 102 | How is the else statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-2.png" alt="Figure 3.2: Structure of an `else` statement"> Figure 3.2 — Structure of an `else` statement. | |
+| 103 | What relationships, labels, and structure does the book show for pattern matching with if? | <img src="assets/ocp-figures/figure-3-3.png" alt="Figure 3.3: Pattern matching with `if`"> Figure 3.3 — Pattern matching with `if`. | |
+| 104 | What relationships, labels, and structure does the book show for classic switch statement? | <img src="assets/ocp-figures/figure-3-4.png" alt="Figure 3.4: Classic switch statement"> Figure 3.4 — Classic switch statement. | |
+| 105 | What relationships, labels, and structure does the book show for switch expression? | <img src="assets/ocp-figures/figure-3-5.png" alt="Figure 3.5: Switch expression"> Figure 3.5 — Switch expression. | |
+| 106 | What relationships, labels, and structure does the book show for switch expression with a case block and yield? | <img src="assets/ocp-figures/figure-3-6.png" alt="Figure 3.6: Switch expression with a case block and `yield`"> Figure 3.6 — Switch expression with a case block and `yield`. | |
+| 107 | What relationships, labels, and structure does the book show for pattern matching with switch? | <img src="assets/ocp-figures/figure-3-7.png" alt="Figure 3.7: Pattern matching with switch"> Figure 3.7 — Pattern matching with switch. | |
+| 108 | How is the while statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-8.png" alt="Figure 3.8: Structure of a `while` statement"> Figure 3.8 — Structure of a `while` statement. | |
+| 109 | How is the do/while statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-9.png" alt="Figure 3.9: Structure of a `do/while` statement"> Figure 3.9 — Structure of a `do/while` statement. | |
+| 110 | How is the basic for loop structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-10.png" alt="Figure 3.10: Structure of a basic `for` loop"> Figure 3.10 — Structure of a basic `for` loop. | |
+| 111 | How is the enhanced for loop structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-11.png" alt="Figure 3.11: Structure of an enhanced `for` loop"> Figure 3.11 — Structure of an enhanced `for` loop. | |
+| 112 | How is the labeled break statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-12.png" alt="Figure 3.12: Structure of a labeled `break` statement"> Figure 3.12 — Structure of a labeled `break` statement. | |
+| 113 | How is the labeled continue statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-13.png" alt="Figure 3.13: Structure of a labeled `continue` statement"> Figure 3.13 — Structure of a labeled `continue` statement. | |
 
 ## Chapter 4 - Core APIs
 
@@ -131,16 +131,16 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 18 | What does `String.length()` count? | UTF-16 `char` code units. | It is not always the number of user-perceived Unicode characters. |
 | 19 | How do `indexOf()` and `charAt()` signal failure? | `indexOf()` returns `-1`; `charAt()` throws an index exception. | Do not expect both APIs to use the same failure signal. |
 | 20 | What does `String.replace()` do to the original? | Nothing; it returns a new string. | Ignoring the return value loses the replacement. |
-| 21 | How do `isEmpty()` and `isBlank()` differ? | Empty means length zero; blank also accepts only whitespace. | A string of spaces is blank but not empty. |
-| 22 | Does `StringBuilder.substring()` mutate the builder? | No; it returns a `String`. | `append()`, `delete()`, and `insert()` do mutate it. |
-| 23 | How do `StringBuilder` length and capacity differ? | Length is used characters; capacity is allocated storage. | Capacity grows automatically and need not equal length. |
-| 24 | What fills positions when `StringBuilder.setLength()` grows? | Null characters (`\u0000`). | They are characters, not the text `null`. |
-| 25 | What initializes elements of a newly created array? | The component type's default values. | This applies even when the array reference is local. |
-| 26 | How do you decode a negative binary-search result? | The insertion point is `-result - 1`. | Negating alone is off by one. |
-| 27 | What does `Arrays.compare()` return? | A negative, zero, or positive lexicographic comparison result. | The exact magnitude is not guaranteed to be one. |
-| 28 | What does `Arrays.mismatch()` return? | The first differing index, or `-1` if equivalent. | A length difference can mismatch at the shorter length. |
-| 29 | What are the return types of `Math.round()`? | `float` input returns `int`; `double` input returns `long`. | `ceil()` and `floor()` return `double`. |
-| 30 | How do `Period` and `Duration` differ? | `Period` is date-based; `Duration` is time-based. | Across daylight-saving changes they can produce different clock results. |
+| 101 | What relationships, labels, and structure does the book show for string indexing? | <img src="assets/ocp-figures/figure-4-1.png" alt="Figure 4.1: String indexing"> Figure 4.1 — String indexing. | |
+| 102 | What relationships, labels, and structure does the book show for substring indexes? | <img src="assets/ocp-figures/figure-4-2.png" alt="Figure 4.2: Substring indexes"> Figure 4.2 — Substring indexes. | |
+| 103 | What relationships, labels, and structure does the book show for basic array declaration? | <img src="assets/ocp-figures/figure-4-3.png" alt="Figure 4.3: Basic array declaration"> Figure 4.3 — Basic array declaration. | |
+| 104 | What relationships, labels, and structure does the book show for empty array and default values? | <img src="assets/ocp-figures/figure-4-4.png" alt="Figure 4.4: Empty array and default values"> Figure 4.4 — Empty array and default values. | |
+| 105 | What relationships, labels, and structure does the book show for initialized array? | <img src="assets/ocp-figures/figure-4-5.png" alt="Figure 4.5: Initialized array"> Figure 4.5 — Initialized array. | |
+| 106 | What relationships, labels, and structure does the book show for array pointing to strings? | <img src="assets/ocp-figures/figure-4-6.png" alt="Figure 4.6: Array pointing to strings"> Figure 4.6 — Array pointing to strings. | |
+| 107 | What relationships, labels, and structure does the book show for sparsely populated array of arrays? | <img src="assets/ocp-figures/figure-4-7.png" alt="Figure 4.7: Sparsely populated array of arrays"> Figure 4.7 — Sparsely populated array of arrays. | |
+| 108 | What relationships, labels, and structure does the book show for asymmetric array of arrays? | <img src="assets/ocp-figures/figure-4-8.png" alt="Figure 4.8: Asymmetric array of arrays"> Figure 4.8 — Asymmetric array of arrays. | |
+| 109 | What relationships, labels, and structure does the book show for period format? | <img src="assets/ocp-figures/figure-4-9.png" alt="Figure 4.9: `Period` format"> Figure 4.9 — `Period` format. | |
+| 110 | What relationships, labels, and structure does the book show for daylight-saving-time transitions? | <img src="assets/ocp-figures/figure-4-10.png" alt="Figure 4.10: Daylight-saving-time transitions"> Figure 4.10 — Daylight-saving-time transitions. | |
 
 ## Chapter 5 - Methods
 
@@ -174,8 +174,8 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 26 | Can methods overload by return type alone? | No; parameter lists must differ. | Return type is not part of the method signature. |
 | 27 | Which overload phase is considered last? | Varargs, after fixed-arity widening and boxing applicability. | An applicable fixed-arity method beats varargs. |
 | 28 | Can a static method be called through an instance? | Yes, though discouraged; resolution uses the reference type. | Even a null reference can appear to call a static method. |
-| 29 | What may an instance method access directly? | Both instance and static members. | Static methods have no implicit `this`. |
-| 30 | What can a method do through a copied object reference? | Mutate the shared object's state. | Reassigning the parameter still leaves the caller's variable unchanged. |
+| 101 | What relationships, labels, and structure does the book show for complete method declaration? | <img src="assets/ocp-figures/figure-5-1.png" alt="Figure 5.1: Complete method declaration"> Figure 5.1 — Complete method declaration. | |
+| 102 | What relationships, labels, and structure does the book show for copying a reference with pass-by-value? | <img src="assets/ocp-figures/figure-5-4.png" alt="Figure 5.4: Copying a reference with pass-by-value"> Figure 5.4 — Copying a reference with pass-by-value. | |
 
 ## Chapter 6 - Class Design
 
@@ -208,9 +208,9 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 25 | What is the full high-level initialization order for a child object? | Parent static initialization, child static initialization, parent instance initialization/constructor, then child instance initialization/constructor. | Static initialization occurs once per class, not once per object. |
 | 26 | In what order do instance fields and initializer blocks run? | In textual order before the constructor body. | Forward-reference rules can still make some field uses illegal. |
 | 27 | Which declarations may be abstract? | Classes and instance methods, subject to modifier rules. | Constructors, fields, static methods, private methods, and final methods cannot be abstract. |
-| 28 | May an abstract class have constructors and concrete methods? | Yes. | Its constructor runs when a concrete subclass is instantiated. |
-| 29 | What happens when an abstract subclass does not implement inherited abstract methods? | It remains abstract. | The first concrete descendant must implement all remaining abstract methods. |
-| 30 | Why are defensive copies needed for immutable classes? | They prevent callers from mutating internal mutable state through shared references. | Copy both incoming mutable values and values returned by accessors where necessary. |
+| 101 | What relationships, labels, and structure does the book show for subclass and superclass declarations? | <img src="assets/ocp-figures/figure-6-1.png" alt="Figure 6.1: Subclass and superclass declarations"> Figure 6.1 — Subclass and superclass declarations. | |
+| 102 | What relationships, labels, and structure does the book show for types of inheritance? | <img src="assets/ocp-figures/figure-6-2.png" alt="Figure 6.2: Types of inheritance"> Figure 6.2 — Types of inheritance. | |
+| 103 | What relationships, labels, and structure does the book show for java object inheritance? | <img src="assets/ocp-figures/figure-6-3.png" alt="Figure 6.3: Java object inheritance"> Figure 6.3 — Java object inheritance. | |
 
 ## Chapter 7 - Beyond Classes
 
@@ -238,14 +238,14 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 20 | How are enum constants obtained programmatically? | `values()` returns all constants; `valueOf(String)` returns the exact named constant. | `valueOf()` is case-sensitive and throws for an unknown name. |
 | 21 | What does an enum's `ordinal()` represent? | Its zero-based declaration position. | Persisting business meaning by ordinal is fragile when constants are reordered. |
 | 22 | Can enum constants invoke different constructors? | Yes, by supplying arguments after each constant name. | Enum constructors are implicitly private. |
-| 23 | What restrictions apply to sealed direct subclasses? | Each must be `final`, `sealed`, or `non-sealed`. | Omitting all three does not compile. |
-| 24 | Where must permitted subclasses be located? | In the same module, or the same package when using the unnamed module. | Sealing is not an unrestricted cross-module relationship. |
-| 25 | What is a record's canonical constructor? | The constructor whose parameters match all components in order and type. | It cannot reduce the record's access level. |
-| 26 | Can a record explicitly extend another class or be subclassed? | No; it implicitly extends `java.lang.Record` and is final. | A record may implement interfaces. |
-| 27 | Can a record declare extra instance fields? | No; additional fields must be static. | It may declare instance methods and override generated methods. |
-| 28 | How does a static nested class relate to its enclosing instance? | It has no implicit enclosing-object reference. | It can directly access only static outer members without an outer instance. |
-| 29 | What does a member inner class carry? | An implicit reference to an instance of its enclosing class. | Creating it from elsewhere requires an outer instance. |
-| 30 | What can local and anonymous classes capture? | Final or effectively final local variables plus accessible enclosing state. | Anonymous classes have no explicit constructor declaration. |
+| 101 | What does a complete declaration for interface look like? | <img src="assets/ocp-figures/figure-7-1.png" alt="Figure 7.1: Defining an interface"> Figure 7.1 — Defining an interface. | |
+| 102 | How does the book diagram implementing an interface? | <img src="assets/ocp-figures/figure-7-2.png" alt="Figure 7.2: Implementing an interface"> Figure 7.2 — Implementing an interface. | |
+| 103 | What relationships, labels, and structure does the book show for interface inheritance? | <img src="assets/ocp-figures/figure-7-3.png" alt="Figure 7.3: Interface inheritance"> Figure 7.3 — Interface inheritance. | |
+| 104 | What does a complete declaration for simple enum look like? | <img src="assets/ocp-figures/figure-7-4.png" alt="Figure 7.4: Defining a simple enum"> Figure 7.4 — Defining a simple enum. | |
+| 105 | What does a complete declaration for sealed class look like? | <img src="assets/ocp-figures/figure-7-5.png" alt="Figure 7.5: Defining a sealed class"> Figure 7.5 — Defining a sealed class. | |
+| 106 | What does a complete declaration for record look like? | <img src="assets/ocp-figures/figure-7-6.png" alt="Figure 7.6: Defining a record"> Figure 7.6 — Defining a record. | |
+| 107 | What relationships, labels, and structure does the book show for declaring a compact record constructor? | <img src="assets/ocp-figures/figure-7-7.png" alt="Figure 7.7: Declaring a compact record constructor"> Figure 7.7 — Declaring a compact record constructor. | |
+| 108 | What relationships, labels, and structure does the book show for object versus reference type? | <img src="assets/ocp-figures/figure-7-8.png" alt="Figure 7.8: Object versus reference type"> Figure 7.8 — Object versus reference type. | |
 
 ## Chapter 8 - Lambdas and Functional Interfaces
 
@@ -279,8 +279,8 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 26 | What does `Consumer.andThen()` return? | A consumer that performs both actions in sequence. | If the first action throws, the second is not run. |
 | 27 | How is an unbound instance method reference invoked? | Its first functional parameter supplies the receiver object. | `String::length` needs a `String` input even though `length()` declares no parameter. |
 | 28 | How is a bound instance method reference different? | The receiver is fixed in the expression, so functional parameters map only to method arguments. | `text::startsWith` and `String::startsWith` target different arities. |
-| 29 | When is a constructor reference compatible? | When a functional method's parameters and return type match an accessible constructor. | Arrays use forms such as `String[]::new` with an integer length parameter. |
-| 30 | Why can the same lambda have different types? | Its type comes from the target functional interface at the use site. | A lambda has no standalone nominal type without target context. |
+| 101 | What relationships, labels, and structure does the book show for lambda syntax with optional parts omitted? | <img src="assets/ocp-figures/figure-8-1.png" alt="Figure 8.1: Lambda syntax with optional parts omitted"> Figure 8.1 — Lambda syntax with optional parts omitted. | |
+| 102 | What relationships, labels, and structure does the book show for lambda syntax with optional parts included? | <img src="assets/ocp-figures/figure-8-2.png" alt="Figure 8.2: Lambda syntax with optional parts included"> Figure 8.2 — Lambda syntax with optional parts included. | |
 
 ## Chapter 9 - Collections and Generics
 
@@ -308,14 +308,14 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 20 | What ordering does a `HashSet` guarantee? | None. | Use `LinkedHashSet` for insertion order or `TreeSet` for sorted order. |
 | 21 | What must elements in a `TreeSet` support? | Natural ordering or a supplied compatible comparator. | Incomparable elements can cause `ClassCastException` at runtime. |
 | 22 | How do queue `offer/poll/peek` differ from `add/remove/element`? | The first group uses special return values on failure; the second tends to throw. | `poll()` and `peek()` return `null` for an empty queue. |
-| 23 | What two ends does a `Deque` expose? | First and last, supporting queue and stack operations. | Method pairs differ in whether failure throws or returns a sentinel. |
-| 24 | What does `Map.put()` return? | The previous value associated with the key, or `null`. | `null` can mean no mapping or a prior null value in maps that allow nulls. |
-| 25 | How does `Map.merge()` handle a missing key? | It installs the supplied value without calling the remapping function. | A remapping result of `null` removes an existing mapping. |
-| 26 | Why must `equals()` and `hashCode()` agree? | Equal objects must have equal hash codes for hash collections to find them reliably. | Equal hash codes do not require objects to be equal. |
-| 27 | What contract should natural ordering have with equality? | It is strongly recommended that `compareTo()==0` agree with `equals()`. | Sorted collections use comparison equality to detect duplicates. |
-| 28 | What is the diamond operator? | `<>` asks the compiler to infer generic constructor type arguments. | It cannot be used everywhere a type argument appears. |
-| 29 | Where is a generic method's type parameter declared? | Before the return type, such as `static <T> T pick(T x)`. | Placing `<T>` after the return type is invalid. |
-| 30 | What may safely be read from `<? extends Number>`? | Values as `Number` (or `Object`). | You cannot add a specific numeric subtype other than `null`. |
+| 101 | What relationships, labels, and structure does the book show for java collections framework? | <img src="assets/ocp-figures/figure-9-1.png" alt="Figure 9.1: Java Collections Framework"> Figure 9.1 — Java Collections Framework. | |
+| 102 | What relationships, labels, and structure does the book show for list ordering and indexes? | <img src="assets/ocp-figures/figure-9-2.png" alt="Figure 9.2: List ordering and indexes"> Figure 9.2 — List ordering and indexes. | |
+| 103 | What relationships, labels, and structure does the book show for set uniqueness? | <img src="assets/ocp-figures/figure-9-3.png" alt="Figure 9.3: Set uniqueness"> Figure 9.3 — Set uniqueness. | |
+| 104 | What relationships, labels, and structure does the book show for set implementations? | <img src="assets/ocp-figures/figure-9-4.png" alt="Figure 9.4: Set implementations"> Figure 9.4 — Set implementations. | |
+| 105 | What relationships, labels, and structure does the book show for deque orientation? | <img src="assets/ocp-figures/figure-9-5.png" alt="Figure 9.5: Deque orientation"> Figure 9.5 — Deque orientation. | |
+| 106 | What relationships, labels, and structure does the book show for deque operations? | <img src="assets/ocp-figures/figure-9-6.png" alt="Figure 9.6: Deque operations"> Figure 9.6 — Deque operations. | |
+| 107 | What relationships, labels, and structure does the book show for stack operations? | <img src="assets/ocp-figures/figure-9-7.png" alt="Figure 9.7: Stack operations"> Figure 9.7 — Stack operations. | |
+| 108 | What relationships, labels, and structure does the book show for map key-value structure? | <img src="assets/ocp-figures/figure-9-8.png" alt="Figure 9.8: Map key-value structure"> Figure 9.8 — Map key-value structure. | |
 
 ## Chapter 10 - Streams
 
@@ -346,11 +346,11 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 23 | How do `ifPresent()` and `ifPresentOrElse()` differ? | The latter also supplies an action for the empty case. | Neither transforms the contained value. |
 | 24 | What does `Optional.map()` do? | Transforms a present value and wraps the result, treating null as empty. | Use `flatMap()` when the mapper already returns an `Optional`. |
 | 25 | What does `Collectors.toMap()` require for duplicate keys? | A merge function, unless duplicate keys should throw. | A map supplier can additionally choose the map implementation. |
-| 26 | What does `groupingBy()` produce? | A map from classifier keys to collections or downstream results. | Key and value types depend on the classifier and downstream collector. |
-| 27 | What does `partitioningBy()` guarantee? | A boolean-keyed map with `true` and `false` partitions. | Both keys are represented even when one partition is empty. |
-| 28 | What does `Collectors.joining()` operate on? | A stream of character sequences, combining them with optional delimiter/prefix/suffix. | Map non-string elements before joining. |
-| 29 | What does `IntStream.summaryStatistics()` provide? | Count, sum, minimum, maximum, and average in one object. | Empty statistics have special min/max sentinel values. |
-| 30 | How do `boxed()` and `mapToObj()` differ? | `boxed()` wraps primitive elements; `mapToObj()` applies a mapping function to produce objects. | Neither is the same as `map()`, which stays in the primitive stream type. |
+| 101 | What relationships, labels, and structure does the book show for optional values? | <img src="assets/ocp-figures/figure-10-1.png" alt="Figure 10.1: Optional values"> Figure 10.1 — Optional values. | |
+| 102 | What relationships, labels, and structure does the book show for stream pipeline? | <img src="assets/ocp-figures/figure-10-2.png" alt="Figure 10.2: Stream pipeline"> Figure 10.2 — Stream pipeline. | |
+| 103 | What sequence and relationships does the book show for steps in stream pipeline execution? | <img src="assets/ocp-figures/figure-10-3.png" alt="Figure 10.3: Steps in stream pipeline execution"> Figure 10.3 — Steps in stream pipeline execution. | |
+| 104 | What relationships, labels, and structure does the book show for stream pipeline with limit()? | <img src="assets/ocp-figures/figure-10-4.png" alt="Figure 10.4: Stream pipeline with `limit()`"> Figure 10.4 — Stream pipeline with `limit()`. | |
+| 105 | What relationships, labels, and structure does the book show for stream pipeline with multiple intermediate operations? | <img src="assets/ocp-figures/figure-10-5.png" alt="Figure 10.5: Stream pipeline with multiple intermediate operations"> Figure 10.5 — Stream pipeline with multiple intermediate operations. | |
 
 ## Chapter 11 - Exceptions and Localization
 
@@ -380,12 +380,12 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 22 | When do catch and finally run relative to automatic resource closing? | Resources close before explicit `catch` and `finally` blocks execute. | The implicit resource-closing phase behaves like an inner finally. |
 | 23 | What does `Locale.Builder` help validate? | Structured locale components such as language, region, script, and variant. | Locale language is conventionally lowercase and region uppercase. |
 | 24 | How do `NumberFormat.getIntegerInstance()` and `getNumberInstance()` differ? | The integer formatter parses/formats without a fractional result; the number formatter supports fractions. | Parsing may stop at the first unrecognized character without consuming the whole string. |
-| 25 | What does a percent formatter do numerically? | It scales between a fractional value and percent display, such as `0.5` and `50%`. | Formatting `50` does not mean fifty percent; it represents five thousand percent. |
-| 26 | What compact number styles are available? | Short and long forms, such as abbreviated `1K` versus words depending on locale. | Output varies by locale and rounding rules. |
-| 27 | Are `DateTimeFormatter` instances immutable and thread-safe? | Yes. | The temporal object still must contain the fields required by the formatter. |
-| 28 | How are literal characters escaped in date/time patterns? | Enclose them in single quotes. | Unquoted letters may be interpreted as pattern symbols. |
-| 29 | What does `MessageFormat` use for substitutions? | Numbered placeholders such as `{0}` with optional formatting information. | Single quotes have escaping meaning in message patterns. |
-| 30 | After Java selects a resource-bundle family, where does key fallback occur? | Up the parent hierarchy of that selected bundle family. | It does not restart the entire locale search separately for every missing key. |
+| 101 | What relationships, labels, and structure does the book show for exception categories? | <img src="assets/ocp-figures/figure-11-1.png" alt="Figure 11.1: Exception categories"> Figure 11.1 — Exception categories. | |
+| 102 | What is the complete annotated syntax of a try statement? | <img src="assets/ocp-figures/figure-11-2.png" alt="Figure 11.2: Syntax of a `try` statement"> Figure 11.2 — Syntax of a `try` statement. | |
+| 103 | What is the complete annotated syntax of a multi-catch block? | <img src="assets/ocp-figures/figure-11-3.png" alt="Figure 11.3: Syntax of a multi-catch block"> Figure 11.3 — Syntax of a multi-catch block. | |
+| 104 | What is the complete annotated syntax of try with finally? | <img src="assets/ocp-figures/figure-11-4.png" alt="Figure 11.4: Syntax of `try` with `finally`"> Figure 11.4 — Syntax of `try` with `finally`. | |
+| 105 | What is the complete annotated syntax of try-with-resources? | <img src="assets/ocp-figures/figure-11-5.png" alt="Figure 11.5: Syntax of try-with-resources"> Figure 11.5 — Syntax of try-with-resources. | |
+| 106 | What relationships, labels, and structure does the book show for locale formats? | <img src="assets/ocp-figures/figure-11-6.png" alt="Figure 11.6: Locale formats"> Figure 11.6 — Locale formats. | |
 
 ## Chapter 12 - Modules
 
@@ -402,25 +402,25 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 9 | What is a named module? | A module with a descriptor, normally on the module path. | Its name comes from `module-info`, not necessarily the JAR filename. |
 | 10 | What is an automatic module? | A nonmodular JAR on the module path, assigned a module name and broad readability/export behavior. | Automatic-module naming can be unstable if derived from filenames. |
 | 11 | What is the unnamed module? | Classpath code grouped without a descriptor. | Classpath code cannot be depended on by named modules in the same clean way. |
-| 12 | What does `jdeps` do? | Analyzes class/package/module dependencies. | It reports dependencies; it does not compile or run the program. |
-| 13 | What does `jlink` create? | A custom runtime image containing selected modules and dependencies. | It works with modular inputs and uses JMOD/runtime module content. |
-| 14 | What does `jpackage` create? | Platform-specific application packages/installers. | It is distinct from `jar` and from runtime-image linking. |
-| 15 | What migration strategy reduces risk? | Move bottom-up where dependencies allow, or use automatic modules as an intermediate step. | Cyclic dependencies and split packages become module-system obstacles. |
-| 16 | Which module is implicitly required by every named module? | `java.base`. | Writing `requires java.base;` is normally redundant. |
-| 17 | What option identifies the module path? | `--module-path`, abbreviated `-p`. | It is distinct from the classpath option. |
-| 18 | How is a modular main class launched? | With `java -p path -m moduleName/package.Main`. | The module name and class name are separated by `/`. |
-| 19 | How are modules compiled to an output directory? | Use `javac` with `-d` and the needed module path, compiling `module-info.java` with sources. | Package directory layout still matters. |
-| 20 | Can a named module read classes from the unnamed module? | No. | Placing a dependency only on the classpath does not make it readable from named code. |
-| 21 | What does an automatic module read and export? | It reads other modules and exports all of its packages. | This broad access is a migration convenience, not strong encapsulation. |
-| 22 | How is an automatic module name chosen? | From `Automatic-Module-Name` in the manifest or derived from the JAR filename. | Filename-derived names can change when the JAR is renamed. |
-| 23 | What does `open module` mean? | All packages are open for deep reflection. | It does not automatically export every package for ordinary compile-time access. |
-| 24 | What does a qualified `opens` directive do? | Opens one package reflectively to named target modules. | It is different from a qualified export. |
-| 25 | What are the four service roles? | Service provider interface, provider implementation, service locator, and consumer. | The provider is registered with `provides ... with`; the consumer declares `uses`. |
-| 26 | Which API locates service implementations? | `ServiceLoader`. | Consumers should depend on the service interface rather than a provider class. |
-| 27 | What does `java --show-module-resolution` reveal? | The modules resolved for a launch. | Resolution output helps diagnose transitive dependencies. |
-| 28 | What does `jar --describe-module` show? | Module metadata for a modular or automatic JAR. | It does not perform dependency analysis like `jdeps`. |
-| 29 | Why are cyclic module dependencies forbidden? | The module graph must resolve without cycles. | Packages/classes that once referenced each other may require redesign during migration. |
-| 30 | What is a split package? | The same package distributed across multiple named modules. | The module system rejects this arrangement in a resolved layer. |
+| 101 | What relationships, labels, and structure does the book show for design of a modular system? | <img src="assets/ocp-figures/figure-12-1.png" alt="Figure 12.1: Design of a modular system"> Figure 12.1 — Design of a modular system. | |
+| 102 | What files and packages are shown in the contents inside a module diagram? | <img src="assets/ocp-figures/figure-12-2.png" alt="Figure 12.2: Contents inside a module"> Figure 12.2 — Contents inside a module. | |
+| 103 | What files and packages are shown in the contents of zoo.animal.feeding diagram? | <img src="assets/ocp-figures/figure-12-3.png" alt="Figure 12.3: Contents of `zoo.animal.feeding`"> Figure 12.3 — Contents of `zoo.animal.feeding`. | |
+| 104 | What relationships, labels, and structure does the book show for module directory structure? | <img src="assets/ocp-figures/figure-12-4.png" alt="Figure 12.4: Module directory structure"> Figure 12.4 — Module directory structure. | |
+| 105 | How does the book annotate running a module with java? | <img src="assets/ocp-figures/figure-12-5.png" alt="Figure 12.5: Running a module with `java`"> Figure 12.5 — Running a module with `java`. | |
+| 106 | What dependency relationships are shown for modules depending on zoo.animal.feeding? | <img src="assets/ocp-figures/figure-12-6.png" alt="Figure 12.6: Modules depending on `zoo.animal.feeding`"> Figure 12.6 — Modules depending on `zoo.animal.feeding`. | |
+| 107 | What files and packages are shown in the contents of zoo.animal.care diagram? | <img src="assets/ocp-figures/figure-12-7.png" alt="Figure 12.7: Contents of `zoo.animal.care`"> Figure 12.7 — Contents of `zoo.animal.care`. | |
+| 108 | What dependency relationships are shown for dependencies for zoo.animal.talks? | <img src="assets/ocp-figures/figure-12-8.png" alt="Figure 12.8: Dependencies for `zoo.animal.talks`"> Figure 12.8 — Dependencies for `zoo.animal.talks`. | |
+| 109 | What files and packages are shown in the contents of zoo.animal.talks diagram? | <img src="assets/ocp-figures/figure-12-9.png" alt="Figure 12.9: Contents of `zoo.animal.talks`"> Figure 12.9 — Contents of `zoo.animal.talks`. | |
+| 110 | What files and packages are shown in the contents of zoo.staff diagram? | <img src="assets/ocp-figures/figure-12-10.png" alt="Figure 12.10: Contents of `zoo.staff`"> Figure 12.10 — Contents of `zoo.staff`. | |
+| 111 | What dependency relationships are shown for dependencies for zoo.staff? | <img src="assets/ocp-figures/figure-12-11.png" alt="Figure 12.11: Dependencies for `zoo.staff`"> Figure 12.11 — Dependencies for `zoo.staff`. | |
+| 112 | What dependency relationships are shown for transitive module dependencies? | <img src="assets/ocp-figures/figure-12-12.png" alt="Figure 12.12: Transitive module dependencies"> Figure 12.12 — Transitive module dependencies. | |
+| 113 | What relationships, labels, and structure does the book show for modules in a service application? | <img src="assets/ocp-figures/figure-12-13.png" alt="Figure 12.13: Modules in a service application"> Figure 12.13 — Modules in a service application. | |
+| 114 | What sequence and relationships does the book show for migration order when dependencies are unique? | <img src="assets/ocp-figures/figure-12-14.png" alt="Figure 12.14: Migration order when dependencies are unique"> Figure 12.14 — Migration order when dependencies are unique. | |
+| 115 | What sequence and relationships does the book show for migration order when dependencies are not unique? | <img src="assets/ocp-figures/figure-12-15.png" alt="Figure 12.15: Migration order when dependencies are not unique"> Figure 12.15 — Migration order when dependencies are not unique. | |
+| 116 | What relationships, labels, and structure does the book show for bottom-up module migration? | <img src="assets/ocp-figures/figure-12-16.png" alt="Figure 12.16: Bottom-up module migration"> Figure 12.16 — Bottom-up module migration. | |
+| 117 | What relationships, labels, and structure does the book show for top-down module migration? | <img src="assets/ocp-figures/figure-12-17.png" alt="Figure 12.17: Top-down module migration"> Figure 12.17 — Top-down module migration. | |
+| 118 | What relationships, labels, and structure does the book show for first decomposition of a cyclic system? | <img src="assets/ocp-figures/figure-12-18.png" alt="Figure 12.18: First decomposition of a cyclic system"> Figure 12.18 — First decomposition of a cyclic system. | |
+| 119 | What relationships, labels, and structure does the book show for removing cyclic module dependencies? | <img src="assets/ocp-figures/figure-12-19.png" alt="Figure 12.19: Removing cyclic module dependencies"> Figure 12.19 — Removing cyclic module dependencies. | |
 
 ## Chapter 13 - Concurrency
 
@@ -449,13 +449,13 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 21 | What does `Future.get(timeout, unit)` add? | A maximum wait followed by `TimeoutException` if unfinished. | Timing out does not automatically cancel the task. |
 | 22 | What is the difference between `shutdown()` and `shutdownNow()`? | The first stops new submissions and finishes queued work; the second attempts interruption and returns never-started tasks. | Neither guarantees an already running task immediately stops. |
 | 23 | What does `invokeAll()` return? | Futures for a collection of submitted callables, after completion or timeout behavior. | Result order corresponds to task-list order, not completion order. |
-| 24 | What object does a synchronized instance method lock? | `this`. | A static synchronized method locks the `Class` object instead. |
-| 25 | Why should `Lock.unlock()` usually be in `finally`? | To release the lock even when protected code throws. | Forgetting to unlock can permanently block other threads. |
-| 26 | What does `tryLock()` provide? | A nonblocking or timed attempt to acquire a lock. | Code must check the boolean result before entering the protected section. |
-| 27 | What is `CyclicBarrier` for? | Making a fixed number of threads wait at a common synchronization point. | The barrier can be reused after all parties arrive. |
-| 28 | Which concurrent sorted collections are available? | `ConcurrentSkipListMap` and `ConcurrentSkipListSet`. | Their sorted behavior differs from hash-based `ConcurrentHashMap`. |
-| 29 | What is a stateful lambda in a parallel stream? | One that reads or mutates shared changing state outside the operation. | It can create races and nondeterministic results. |
-| 30 | How do `forEach()` and `forEachOrdered()` differ on parallel streams? | The latter preserves encounter order; the former may process in any order. | Preserving order can reduce parallel performance. |
+| 101 | What relationships, labels, and structure does the book show for platform threads? | <img src="assets/ocp-figures/figure-13-1.png" alt="Figure 13.1: Platform threads"> Figure 13.1 — Platform threads. | |
+| 102 | What relationships, labels, and structure does the book show for virtual threads? | <img src="assets/ocp-figures/figure-13-2.png" alt="Figure 13.2: Virtual threads"> Figure 13.2 — Virtual threads. | |
+| 103 | What relationships, labels, and structure does the book show for thread states? | <img src="assets/ocp-figures/figure-13-3.png" alt="Figure 13.3: Thread states"> Figure 13.3 — Thread states. | |
+| 104 | What relationships, labels, and structure does the book show for executorservice lifecycle? | <img src="assets/ocp-figures/figure-13-4.png" alt="Figure 13.4: ExecutorService lifecycle"> Figure 13.4 — ExecutorService lifecycle. | |
+| 105 | What relationships, labels, and structure does the book show for unsynchronized shared updates? | <img src="assets/ocp-figures/figure-13-5.png" alt="Figure 13.5: Unsynchronized shared updates"> Figure 13.5 — Unsynchronized shared updates. | |
+| 106 | What relationships, labels, and structure does the book show for shared updates using atomic operations? | <img src="assets/ocp-figures/figure-13-6.png" alt="Figure 13.6: Shared updates using atomic operations"> Figure 13.6 — Shared updates using atomic operations. | |
+| 107 | What relationships, labels, and structure does the book show for race condition during user creation? | <img src="assets/ocp-figures/figure-13-7.png" alt="Figure 13.7: Race condition during user creation"> Figure 13.7 — Race condition during user creation. | |
 
 ## Chapter 14 - I/O
 
@@ -484,13 +484,13 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 21 | How do `isAbsolute()` and `toAbsolutePath()` differ? | The first tests; the second converts using the current environment when needed. | An absolute path is not necessarily normalized or guaranteed to exist. |
 | 22 | How do `Files.delete()` and `deleteIfExists()` differ? | `delete()` throws when absent; `deleteIfExists()` returns false. | Both can fail for a nonempty directory. |
 | 23 | What option commonly allows `Files.copy()` to overwrite? | `StandardCopyOption.REPLACE_EXISTING`. | Copying a directory does not recursively copy all descendants by default. |
-| 24 | What is notable about `Files.move()` with `ATOMIC_MOVE`? | It requests an indivisible filesystem move when supported. | Unsupported atomic moves can throw `AtomicMoveNotSupportedException`. |
-| 25 | How do `Files.list()` and `Files.walk()` differ? | `list()` returns immediate children; `walk()` traverses recursively to a depth. | Both return lazy streams that should be closed. |
-| 26 | What does `Files.find()` add over `walk()`? | A predicate receiving both the path and basic attributes during traversal. | The stream is still lazy and closeable. |
-| 27 | How are byte and character stream classes recognized? | Byte streams end in `InputStream`/`OutputStream`; character streams in `Reader`/`Writer`. | Choose character streams for decoded text. |
-| 28 | What do `mark()` and `reset()` require? | A stream that reports `markSupported()` as true and a valid mark within its read limit. | Not every stream supports repositioning. |
-| 29 | Are static and transient fields serialized by default? | No. | Static state belongs to the class; transient instance state receives defaults after deserialization. |
-| 30 | Which constructor runs when a serializable object is deserialized? | The first non-serializable superclass constructor. | Serializable-class constructors and field initializers are skipped in normal deserialization. |
+| 101 | What relationships, labels, and structure does the book show for directory and file hierarchy? | <img src="assets/ocp-figures/figure-14-1.png" alt="Figure 14.1: Directory and file hierarchy"> Figure 14.1 — Directory and file hierarchy. | |
+| 102 | What relationships, labels, and structure does the book show for relative path symbols? | <img src="assets/ocp-figures/figure-14-2.png" alt="Figure 14.2: Relative path symbols"> Figure 14.2 — Relative path symbols. | |
+| 103 | What relationships, labels, and structure does the book show for comparing file uniqueness? | <img src="assets/ocp-figures/figure-14-3.png" alt="Figure 14.3: Comparing file uniqueness"> Figure 14.3 — Comparing file uniqueness. | |
+| 104 | What relationships, labels, and structure does the book show for i/o stream data flow? | <img src="assets/ocp-figures/figure-14-4.png" alt="Figure 14.4: I/O stream data flow"> Figure 14.4 — I/O stream data flow. | |
+| 105 | What relationships, labels, and structure does the book show for serialization process? | <img src="assets/ocp-figures/figure-14-5.png" alt="Figure 14.5: Serialization process"> Figure 14.5 — Serialization process. | |
+| 106 | What relationships, labels, and structure does the book show for file-system traversal cycle? | <img src="assets/ocp-figures/figure-14-6.png" alt="Figure 14.6: File-system traversal cycle"> Figure 14.6 — File-system traversal cycle. | |
+| 107 | What relationships, labels, and structure does the book show for i/o stream class hierarchy? | <img src="assets/ocp-figures/figure-14-7.png" alt="Figure 14.7: I/O stream class hierarchy"> Figure 14.7 — I/O stream class hierarchy. | |
 
 ## Rapid Review: Cross-Chapter Traps
 

@@ -89,6 +89,9 @@ button:disabled { opacity:.38; cursor:not-allowed; }
 .flip-hint { margin-top:auto; padding-top:28px; color:var(--muted); font:11px var(--mono); }
 .card-note { display:block; width:100%; max-width:790px; margin-top:30px; padding-top:24px; border-top:1px solid #2b3a32; color:#aebbb4; font-size:17px; line-height:1.7; }
 .flashcard-image { display:block; max-width:min(100%,440px); max-height:220px; margin:0 auto 24px; border-radius:8px; object-fit:contain; }
+.figure-answer { display:flex; width:100%; margin:auto 0; flex-direction:column; align-items:center; gap:14px; }
+.figure-answer .book-figure { width:auto; max-width:100%; max-height:390px; margin:0; border-radius:4px; background:#fff; }
+.figure-answer .card-answer { margin:0; color:var(--muted); font:500 14px/1.5 var(--mono); text-align:center; }
 .flashcard-front .flashcard-image { align-self:center; }
 .sign-front { align-items:center; justify-content:center; }
 .sign-front .sign-image { width:min(78%,480px); max-width:none; max-height:340px; margin:0; object-fit:contain; }

@@ -6,7 +6,7 @@ const state = {
   selections: new Set(),
   progress: {},
 };
-const CONTENT_VERSION = "10";
+const CONTENT_VERSION = "11";
 
 const flash = {
   activeSection: "review",
@@ -313,7 +313,7 @@ function parseFlashcardMarkdown(markdown, collection) {
     }
     if (!deck || !/^\|\s*(?:\d+|[RS]\d{3})\s*\|/.test(line)) continue;
     const cells = splitTableRow(line);
-    if (collection === "java") deck.cards.push({ id: `${deck.id}-${cells[0]}`, front: cells[1], back: cells[2], note: cells[3], image: "" });
+    if (collection === "java") deck.cards.push({ id: `${deck.id}-${cells[0]}`, front: cells[1], back: cells[2], note: cells[3], image: imageFrom(cells[2]) });
     else if (deck.id === "rules") deck.cards.push({ id: cells[0], topic: cells[1], front: cells[2], back: cells[3], note: "", image: imageFrom(cells[3]) });
     else deck.cards.push({ id: cells[0], front: "", back: cells[2], note: "", image: imageFrom(cells[1]) });
   }
@@ -371,8 +371,10 @@ function renderFlashcard(collection) {
   const cardPosition = remaining.findIndex((item) => item.id === card.id) + 1;
   const current = data.progress[progressKey(deck.id, card.id)] || { mastery: 0 };
   const isRoadSign = collection === "g1" && deck.id === "signs";
+  const isBookFigure = collection === "java" && Boolean(card.image);
   const context = collection === "java" ? javaCardContext(card, deck) : "";
-  const image = card.image ? `<img class="flashcard-image${isRoadSign ? " sign-image" : ""}" src="${escapeHtml(card.image)}" alt="Official Ontario driver's handbook illustration">` : "";
+  const imageAlt = isBookFigure ? plainMarkdown(card.back) : "Official Ontario driver's handbook illustration";
+  const image = card.image ? `<img class="flashcard-image${isRoadSign ? " sign-image" : ""}${isBookFigure ? " book-figure" : ""}" src="${escapeHtml(card.image)}" alt="${escapeHtml(imageAlt)}">` : "";
   mount.innerHTML = `
     <div class="deck-status"><span>${deck.cards.length} cards · ${seen} seen · ${learned} learned</span><span>Level ${Number(current.mastery) || 0}/5</span></div>
     <button class="flashcard-scene" type="button" aria-label="Flip flashcard" aria-pressed="${data.flipped}">
@@ -383,7 +385,7 @@ function renderFlashcard(collection) {
           <span class="flip-hint">Click or press Space to reveal</span>
         </span>
         <span class="flashcard-face flashcard-back">
-          <span class="card-answer">${renderRich(card.back)}</span>
+          ${isBookFigure ? `<span class="figure-answer">${image}<span class="card-answer">${renderRich(card.back)}</span></span>` : `<span class="card-answer">${renderRich(card.back)}</span>`}
           ${collection === "g1" && deck.id === "rules" ? image : ""}
           ${card.note ? `<span class="card-note">${renderRich(card.note)}</span>` : ""}
         </span>
@@ -478,7 +480,7 @@ async function initFlashcards() {
   flash.collections.g1.decks = parseFlashcardMarkdown(await g1Response.text(), "g1");
   const javaContexts = await javaContextResponse.json();
   for (const deck of flash.collections.java.decks) {
-    for (const card of deck.cards) card.context = javaContexts[card.id] || "";
+    for (const card of deck.cards) card.context = card.image ? "" : javaContexts[card.id] || "";
   }
   await Promise.all([loadFlashProgress("java"), loadFlashProgress("g1")]);
   for (const collection of ["java", "g1"]) { renderDeckPicker(collection); renderFlashcard(collection); }
