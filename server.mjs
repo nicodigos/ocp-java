@@ -16,7 +16,9 @@ function parseEnv(text) {
   );
 }
 
-const env = parseEnv(await readFile(resolve(projectRoot, ".env"), "utf8"));
+const envPath = resolve(projectRoot, ".env");
+const fileEnv = existsSync(envPath) ? parseEnv(await readFile(envPath, "utf8")) : {};
+const env = { ...fileEnv, ...process.env };
 const databaseUrl = new URL(env.DATABASE_URL);
 const pool = new pg.Pool({
   host: databaseUrl.hostname,
