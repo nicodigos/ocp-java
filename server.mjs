@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { createPrivateKey, sign } from "node:crypto";
 import { extname, resolve, sep } from "node:path";
 import pg from "pg";
 
@@ -29,6 +30,117 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
   max: 5,
 });
+
+const generatorCooldowns = new Map();
+let googleToken = null;
+
+function base64Url(value) {
+  return Buffer.from(value).toString("base64url");
+}
+
+function googleServiceAccount() {
+  let account;
+  try {
+    account = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON || "");
+  } catch {
+    throw new Error("Question generator is not configured correctly");
+  }
+  if (!account?.client_email || !account?.private_key) throw new Error("Question generator is not configured correctly");
+  return { ...account, private_key: String(account.private_key).replace(/\\n/g, "\n") };
+}
+
+async function googleAccessToken() {
+  const now = Math.floor(Date.now() / 1000);
+  if (googleToken?.expiresAt > now + 60) return googleToken.value;
+  const account = googleServiceAccount();
+  const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64Url(JSON.stringify({
+    iss: account.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  }));
+  const unsigned = `${header}.${claims}`;
+  const signature = sign("RSA-SHA256", Buffer.from(unsigned), createPrivateKey(account.private_key)).toString("base64url");
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: `${unsigned}.${signature}` }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.access_token) throw new Error("Could not authenticate the question generator");
+  googleToken = { value: payload.access_token, expiresAt: now + Number(payload.expires_in || 3600) };
+  return googleToken.value;
+}
+
+async function chapterContext(chapters) {
+  const [manifest, markdown] = await Promise.all([
+    readFile(resolve(projectRoot, "assets/review-tests/index.json"), "utf8").then(JSON.parse),
+    readFile(resolve(projectRoot, "assets/flashcards/ocp-java-21-flashcards.md"), "utf8"),
+  ]);
+  return chapters.map((chapter) => {
+    const meta = manifest.find((item) => item.chapter === chapter);
+    const section = markdown.match(new RegExp(`^## Chapter ${chapter}[^\\n]*\\n([\\s\\S]*?)(?=^## Chapter |^## Rapid Review)`, "m"))?.[1] || "";
+    const notes = section.split(/\r?\n/).filter((line) => /^\| \d+ \|/.test(line)).join("\n").replace(/<img\b[^>]*>/gi, "").slice(0, 4_500);
+    return `CHAPTER ${chapter}: ${meta?.title || "Unknown"}\n${notes}`;
+  }).join("\n\n");
+}
+
+function validateGeneratedQuestion(value) {
+  if (!value || typeof value.stem !== "string" || value.stem.trim().length < 10 || value.stem.length > 4_000) throw new Error("Gemini returned an invalid question");
+  if (!Array.isArray(value.choices) || value.choices.length < 3 || value.choices.length > 6) throw new Error("Gemini returned invalid choices");
+  const letters = value.choices.map((choice) => String(choice?.letter || ""));
+  if (new Set(letters).size !== letters.length || !letters.every((letter, index) => letter === String.fromCharCode(65 + index))) throw new Error("Gemini returned invalid choice labels");
+  if (!value.choices.every((choice) => typeof choice.text === "string" && choice.text.trim())) throw new Error("Gemini returned an empty choice");
+  if (!Array.isArray(value.correct) || !value.correct.length || !value.correct.every((letter) => letters.includes(letter))) throw new Error("Gemini returned an invalid answer key");
+  if (typeof value.explanation !== "string" || value.explanation.trim().length < 10) throw new Error("Gemini returned an invalid explanation");
+  return {
+    stem: value.stem.replace(/^```(?:java)?\s*$/gim, "").trim(),
+    choices: value.choices.map((choice) => ({ letter: choice.letter, text: choice.text.trim() })),
+    correct: [...new Set(value.correct)],
+    multi: value.correct.length > 1,
+    explanation: value.explanation.trim(),
+  };
+}
+
+async function generateQuestion(chapters) {
+  const accessToken = await googleAccessToken();
+  const project = env.GOOGLE_CLOUD_PROJECT || googleServiceAccount().project_id;
+  const location = env.GOOGLE_CLOUD_LOCATION || "global";
+  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`;
+  const context = await chapterContext(chapters);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style questions. Use only the supplied chapter notes. Test reasoning, compilation, behavior, or rules; do not mention the notes. Create either one correct answer or multiple correct answers. Distractors must be plausible. Java snippets must be complete enough to evaluate. Return only the requested JSON." }] },
+      contents: [{ role: "user", parts: [{ text: `Selected chapters: ${chapters.join(", ")}. Generate one new question that combines them when useful. Do not copy an existing review question verbatim.\n\nSTUDY NOTES\n${context}` }] }],
+      generationConfig: {
+        temperature: 0.7,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          required: ["stem", "choices", "correct", "explanation"],
+          properties: {
+            stem: { type: "string" },
+            choices: { type: "array", minItems: 3, maxItems: 6, items: { type: "object", required: ["letter", "text"], properties: { letter: { type: "string" }, text: { type: "string" } } } },
+            correct: { type: "array", minItems: 1, items: { type: "string" } },
+            explanation: { type: "string" },
+          },
+        },
+      },
+    }),
+    signal: AbortSignal.timeout(45_000),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(`Gemini request failed (${response.status})`);
+  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
+  if (!text) throw new Error("Gemini returned no question");
+  return validateGeneratedQuestion(JSON.parse(text));
+}
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -187,6 +299,21 @@ async function handleApi(request, response, pathname) {
   if (pathname === "/api/progress" && request.method === "DELETE") {
     await pool.query("DELETE FROM public.answers");
     json(response, 200, { cleared: true });
+    return true;
+  }
+  if (pathname === "/api/questions/generate" && request.method === "POST") {
+    const payload = await readJson(request);
+    const chapters = [...new Set(Array.isArray(payload.chapters) ? payload.chapters.map(Number) : [])].sort((a, b) => a - b);
+    if (!chapters.length || !chapters.every((chapter) => Number.isInteger(chapter) && chapter >= 1 && chapter <= 14)) throw new Error("Select at least one valid chapter");
+    const client = String(request.headers["x-forwarded-for"] || request.socket.remoteAddress || "unknown").split(",")[0].trim();
+    const now = Date.now();
+    if ((generatorCooldowns.get(client) || 0) > now - 8_000) {
+      response.setHeader("Retry-After", "8");
+      json(response, 429, { error: "Please wait a few seconds before generating another question" });
+      return true;
+    }
+    generatorCooldowns.set(client, now);
+    json(response, 200, await generateQuestion(chapters));
     return true;
   }
   return false;
