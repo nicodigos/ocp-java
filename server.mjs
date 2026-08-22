@@ -109,7 +109,7 @@ async function generateQuestion(chapters) {
   const accessToken = await googleAccessToken();
   const project = env.GOOGLE_CLOUD_PROJECT || googleServiceAccount().project_id;
   const location = env.GOOGLE_CLOUD_LOCATION || "global";
-  const model = env.GEMINI_MODEL || "gemini-2.5-flash";
+  const model = env.GEMINI_MODEL || "gemini-3.1-pro-preview";
   const endpoint = `https://aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`;
   const context = await chapterContext(chapters);
   const response = await fetch(endpoint, {
@@ -119,7 +119,7 @@ async function generateQuestion(chapters) {
       systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style questions. Use only the supplied chapter notes. Test reasoning, compilation, behavior, or rules; do not mention the notes. Create either one correct answer or multiple correct answers. Distractors must be plausible. Java snippets must be complete enough to evaluate. Return only the requested JSON." }] },
       contents: [{ role: "user", parts: [{ text: `Selected chapters: ${chapters.join(", ")}. Generate one new question that combines them when useful. Do not copy an existing review question verbatim.\n\nSTUDY NOTES\n${context}` }] }],
       generationConfig: {
-        temperature: 0.7,
+        thinkingConfig: { thinkingLevel: "HIGH" },
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -133,7 +133,7 @@ async function generateQuestion(chapters) {
         },
       },
     }),
-    signal: AbortSignal.timeout(45_000),
+    signal: AbortSignal.timeout(180_000),
   });
   const payload = await response.json();
   if (!response.ok) throw new Error(`Gemini request failed (${response.status})`);
