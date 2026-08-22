@@ -80,16 +80,25 @@ async function chapterContext(chapters) {
     readFile(resolve(projectRoot, "assets/review-tests/index.json"), "utf8").then(JSON.parse),
     readFile(resolve(projectRoot, "assets/flashcards/ocp-java-21-flashcards.md"), "utf8"),
   ]);
-  return chapters.map((chapter) => {
+  const sections = await Promise.all(chapters.map(async (chapter) => {
     const meta = manifest.find((item) => item.chapter === chapter);
     const section = markdown.match(new RegExp(`^## Chapter ${chapter}[^\\n]*\\n([\\s\\S]*?)(?=^## Chapter |^## Rapid Review)`, "m"))?.[1] || "";
     const notes = section.split(/\r?\n/).filter((line) => /^\| \d+ \|/.test(line)).join("\n").replace(/<img\b[^>]*>/gi, "").slice(0, 4_500);
-    return `CHAPTER ${chapter}: ${meta?.title || "Unknown"}\n${notes}`;
-  }).join("\n\n");
+    const review = meta?.file ? await readFile(resolve(projectRoot, "assets/review-tests", meta.file), "utf8") : "";
+    const examples = review.split(/^## Question \d+\s*$/m).slice(1)
+      .map((question) => question.trim())
+      .filter((question) => /[{};]|->|\b(?:class|interface|record|enum|switch|try|for|while)\b/.test(question))
+      .slice(0, 2)
+      .join("\n\n---\n\n")
+      .slice(0, 5_000);
+    return `CHAPTER ${chapter}: ${meta?.title || "Unknown"}\nSTUDY NOTES\n${notes}\n\nBOOK REVIEW STYLE EXAMPLES WITH APPENDIX ANSWERS (never copy their question, code, or answer)\n${examples}`;
+  }));
+  return sections.join("\n\n");
 }
 
 function validateGeneratedQuestion(value) {
   if (!value || typeof value.stem !== "string" || value.stem.trim().length < 10 || value.stem.length > 4_000) throw new Error("Gemini returned an invalid question");
+  if (!/[{};]|->|\b(?:class|interface|record|enum|switch|try|for|while)\b/.test(value.stem)) throw new Error("Gemini did not return a Java code question");
   if (!Array.isArray(value.choices) || value.choices.length < 3 || value.choices.length > 6) throw new Error("Gemini returned invalid choices");
   const letters = value.choices.map((choice) => String(choice?.letter || ""));
   if (new Set(letters).size !== letters.length || !letters.every((letter, index) => letter === String.fromCharCode(65 + index))) throw new Error("Gemini returned invalid choice labels");
@@ -116,8 +125,8 @@ async function generateQuestion(chapters) {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style questions. Use only the supplied chapter notes. Test reasoning, compilation, behavior, or rules; do not mention the notes. Create either one correct answer or multiple correct answers. Distractors must be plausible. Java snippets must be complete enough to evaluate. Return only the requested JSON." }] },
-      contents: [{ role: "user", parts: [{ text: `Selected chapters: ${chapters.join(", ")}. Generate one new question that combines them when useful. Do not copy an existing review question verbatim.\n\nSTUDY NOTES\n${context}` }] }],
+      systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style code-analysis questions. EVERY question must contain a substantive Java snippet. Ask whether it compiles, what it prints, what exception or behavior occurs, or which statements about the snippet are true. Never write a definition-only or trivia-only question. Include realistic exam traps involving types, scope, overload resolution, control flow, API contracts, exceptions, or other rules from the selected chapters. Create either one correct answer or multiple correct answers. Distractors must be plausible and require tracing or compilation analysis. The snippet must contain enough context to evaluate and must not reveal the answer. Use Java 21 semantics. Write the explanation in the style of the book's review-question appendix: state the governing rule, trace the relevant code, and discuss EVERY option by letter, explicitly saying why it is correct or incorrect. If the code fails to compile, identify the exact construct and explain why no runtime tracing occurs. The explanation must be self-contained and instructional, not merely restate the answer key. Return only the requested JSON." }] },
+      contents: [{ role: "user", parts: [{ text: `Selected chapters: ${chapters.join(", ")}. Generate one NEW code question that combines their topics when useful. Match the difficulty and compact presentation of the supplied book examples, and match the thorough option-by-option style of their appendix answers, but do not copy or lightly paraphrase any example. The stem must visibly include Java source code.\n\n${context}` }] }],
       generationConfig: {
         thinkingConfig: { thinkingLevel: "HIGH" },
         responseMimeType: "application/json",
