@@ -18,9 +18,13 @@ const flash = {
 
 const generator = {
   question: null,
+  nextQuestion: null,
   selections: new Set(),
   graded: false,
+  result: null,
   loading: false,
+  pollTimer: null,
+  chaptersLoaded: false,
 };
 
 const el = (id) => document.getElementById(id);
@@ -507,15 +511,18 @@ function selectedGeneratorChapters() {
 
 function renderGeneratedQuestion() {
   const mount = el("generated-question");
-  if (generator.loading) {
-    mount.innerHTML = '<div class="loading">Gemini is writing a question…</div>';
+  if (!generator.question && generator.loading) {
+    mount.innerHTML = '<div class="loading">Gemini is preparing your next question in the background…</div>';
     return;
   }
   const question = generator.question;
-  if (!question) return;
+  if (!question) {
+    mount.innerHTML = '<p class="generator-empty">Your selected chapters are saved. A question will appear here when it is ready.</p>';
+    return;
+  }
   const choices = question.choices.map((choice) => {
     const selected = generator.selections.has(choice.letter);
-    const correct = question.correct.includes(choice.letter);
+    const correct = generator.result?.answerKey.includes(choice.letter);
     let status = selected ? " selected" : "";
     if (generator.graded) status += correct ? " correct" : selected ? " incorrect" : "";
     const choiceText = looksLikeCode(choice.text) ? choice.text : choice.text.replace(/\s+/g, " ").trim();
@@ -524,12 +531,15 @@ function renderGeneratedQuestion() {
       <span class="choice-text ${looksLikeCode(choice.text) ? "code-choice" : ""}">${escapeHtml(choiceText)}</span>
     </button>`;
   }).join("");
-  const correct = sameAnswers(generator.selections, question.correct);
+  const correct = generator.result?.correct;
+  const nextControl = generator.nextQuestion
+    ? '<button id="show-next-generated" class="primary-button" type="button">Show next question →</button>'
+    : '<button class="primary-button" type="button" disabled>Preparing next question…</button>';
   mount.innerHTML = `<div class="generated-card">
     <div class="question-meta"><span class="question-badge">Generated question</span><span class="question-type">${question.multi ? "Select all that apply" : "Select one answer"}</span></div>
     ${renderStem(question.stem)}
     <div class="choices">${choices}</div>
-    ${generator.graded ? `<div class="feedback ${correct ? "" : "wrong"}"><h2>${correct ? "Correct — nicely done." : "Not quite."}</h2><p class="answer-key">Correct answer: ${question.correct.join(", ")}</p><p>${escapeHtml(question.explanation)}</p></div>` : '<div class="check-row"><button id="check-generated-answer" class="check-button" type="button" disabled>Check answer</button></div>'}
+    ${generator.graded ? `<div class="feedback ${correct ? "" : "wrong"}"><h2>${correct ? "Correct — nicely done." : "Not quite."}</h2><p class="answer-key">Correct answer: ${generator.result.answerKey.join(", ")}</p><p>${escapeHtml(generator.result.explanation)}</p><div class="check-row">${nextControl}</div></div>` : '<div class="check-row"><button id="check-generated-answer" class="check-button" type="button" disabled>Check answer</button></div>'}
   </div>`;
   mount.querySelectorAll(".generated-choice").forEach((button) => button.addEventListener("click", () => {
     const letter = button.dataset.letter;
@@ -538,7 +548,73 @@ function renderGeneratedQuestion() {
     mount.querySelectorAll(".generated-choice").forEach((choice) => choice.classList.toggle("selected", generator.selections.has(choice.dataset.letter)));
     el("check-generated-answer").disabled = generator.selections.size === 0;
   }));
-  el("check-generated-answer")?.addEventListener("click", () => { generator.graded = true; renderGeneratedQuestion(); });
+  el("check-generated-answer")?.addEventListener("click", gradeGeneratedQuestion);
+  el("show-next-generated")?.addEventListener("click", () => {
+    generator.question = generator.nextQuestion;
+    generator.nextQuestion = null;
+    generator.selections.clear();
+    generator.graded = false;
+    generator.result = null;
+    renderGeneratedQuestion();
+  });
+}
+
+function scheduleGeneratorPoll() {
+  clearTimeout(generator.pollTimer);
+  generator.pollTimer = setTimeout(refreshGeneratedQuestion, 2_500);
+}
+
+async function refreshGeneratedQuestion() {
+  try {
+    const response = await fetch("/api/questions/current");
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Could not load the generated question");
+    if (!generator.chaptersLoaded) {
+      document.querySelectorAll('input[name="generator-chapter"]').forEach((input) => {
+        input.checked = payload.chapters.includes(Number(input.value));
+      });
+      generator.chaptersLoaded = true;
+    }
+    if (payload.question) {
+      if (generator.graded) generator.nextQuestion = payload.question;
+      else generator.question = payload.question;
+      generator.loading = false;
+      renderGeneratedQuestion();
+      return;
+    }
+    generator.loading = payload.status === "generating";
+    renderGeneratedQuestion();
+    if (payload.status === "generating" || payload.status === "idle") scheduleGeneratorPoll();
+    else if (payload.status === "error") {
+      mountGeneratorError(payload.error || "Question generation failed. Submit the chapters to try again.");
+    }
+  } catch (error) {
+    if (!generator.question) mountGeneratorError(error.message);
+    scheduleGeneratorPoll();
+  }
+}
+
+function mountGeneratorError(message) {
+  el("generated-question").innerHTML = `<div class="generator-error">${escapeHtml(message)}</div>`;
+}
+
+async function gradeGeneratedQuestion() {
+  el("check-generated-answer").disabled = true;
+  try {
+    const response = await fetch("/api/questions/answer", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ selected: [...generator.selections] }),
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "Could not check this answer");
+    generator.result = payload;
+    generator.graded = true;
+    renderGeneratedQuestion();
+    scheduleGeneratorPoll();
+  } catch (error) {
+    el("generated-question").insertAdjacentHTML("beforeend", `<div class="generator-error">${escapeHtml(error.message)}</div>`);
+  }
 }
 
 async function requestGeneratedQuestion(event) {
@@ -550,25 +626,28 @@ async function requestGeneratedQuestion(event) {
   }
   generator.loading = true;
   generator.question = null;
+  generator.nextQuestion = null;
   generator.selections.clear();
   generator.graded = false;
+  generator.result = null;
   el("generate-question").disabled = true;
   renderGeneratedQuestion();
   try {
-    const response = await fetch("/api/questions/generate", {
-      method: "POST",
+    const response = await fetch("/api/questions/chapters", {
+      method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ chapters }),
     });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Could not generate a question");
-    generator.question = payload;
+    generator.loading = true;
+    scheduleGeneratorPoll();
   } catch (error) {
     el("generated-question").innerHTML = `<div class="generator-error">${escapeHtml(error.message)}</div>`;
   } finally {
     generator.loading = false;
     el("generate-question").disabled = false;
-    if (generator.question) renderGeneratedQuestion();
+    renderGeneratedQuestion();
   }
 }
 
@@ -577,6 +656,7 @@ function initGenerator() {
   el("generator-form").addEventListener("submit", requestGeneratedQuestion);
   el("generator-select-all").addEventListener("click", () => document.querySelectorAll('input[name="generator-chapter"]').forEach((input) => { input.checked = true; }));
   el("generator-clear").addEventListener("click", () => document.querySelectorAll('input[name="generator-chapter"]').forEach((input) => { input.checked = false; }));
+  refreshGeneratedQuestion();
 }
 
 function closeMenu() {

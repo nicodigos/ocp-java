@@ -1,7 +1,7 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
-import { createPrivateKey, sign } from "node:crypto";
+import { createPrivateKey, randomUUID, sign } from "node:crypto";
 import { extname, resolve, sep } from "node:path";
 import pg from "pg";
 
@@ -31,7 +31,6 @@ const pool = new pg.Pool({
   max: 5,
 });
 
-const generatorCooldowns = new Map();
 let googleToken = null;
 
 function base64Url(value) {
@@ -149,6 +148,72 @@ async function generateQuestion(chapters) {
   const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
   if (!text) throw new Error("Gemini returned no question");
   return validateGeneratedQuestion(JSON.parse(text));
+}
+
+function validateGeneratorChapters(value) {
+  const chapters = [...new Set(Array.isArray(value) ? value.map(Number) : [])].sort((a, b) => a - b);
+  if (!chapters.length || !chapters.every((chapter) => Number.isInteger(chapter) && chapter >= 1 && chapter <= 14)) {
+    throw new Error("Select at least one valid chapter");
+  }
+  return chapters;
+}
+
+function publicQuestion(question) {
+  if (!question) return null;
+  return { stem: question.stem, choices: question.choices, multi: Boolean(question.multi) };
+}
+
+function publicGeneratorState(row) {
+  return {
+    chapters: row.chapters.map(Number),
+    status: row.status,
+    question: publicQuestion(row.question),
+    error: row.status === "error" ? row.error : null,
+  };
+}
+
+async function startQuestionGeneration() {
+  const generationId = randomUUID();
+  const claimed = await pool.query(
+    `UPDATE public.generator_state
+     SET status = 'generating', question = NULL, generation_id = $1, error = NULL, updated_at = now()
+     WHERE id = 1 AND question IS NULL
+       AND (status <> 'generating' OR updated_at < now() - interval '4 minutes')
+     RETURNING chapters`,
+    [generationId]
+  );
+  if (!claimed.rowCount) return false;
+  const chapters = claimed.rows[0].chapters.map(Number);
+  void generateQuestion(chapters).then(async (question) => {
+    await pool.query(
+      `UPDATE public.generator_state
+       SET status = 'ready', question = $2::jsonb, error = NULL, updated_at = now()
+       WHERE id = 1 AND generation_id = $1`,
+      [generationId, JSON.stringify(question)]
+    );
+  }).catch(async (error) => {
+    const message = String(error?.message || "Question generation failed").slice(0, 300);
+    try {
+      await pool.query(
+        `UPDATE public.generator_state
+         SET status = 'error', generation_id = NULL, error = $2, updated_at = now()
+         WHERE id = 1 AND generation_id = $1`,
+        [generationId, message]
+      );
+    } catch (databaseError) {
+      console.error("Could not save generator failure:", databaseError.message);
+    }
+  });
+  return true;
+}
+
+async function generatorState() {
+  let result = await pool.query("SELECT chapters, status, question, error FROM public.generator_state WHERE id = 1");
+  if (!result.rows[0].question && result.rows[0].status === "idle") {
+    await startQuestionGeneration();
+    result = await pool.query("SELECT chapters, status, question, error FROM public.generator_state WHERE id = 1");
+  }
+  return publicGeneratorState(result.rows[0]);
 }
 
 const mimeTypes = {
@@ -310,19 +375,55 @@ async function handleApi(request, response, pathname) {
     json(response, 200, { cleared: true });
     return true;
   }
-  if (pathname === "/api/questions/generate" && request.method === "POST") {
-    const payload = await readJson(request);
-    const chapters = [...new Set(Array.isArray(payload.chapters) ? payload.chapters.map(Number) : [])].sort((a, b) => a - b);
-    if (!chapters.length || !chapters.every((chapter) => Number.isInteger(chapter) && chapter >= 1 && chapter <= 14)) throw new Error("Select at least one valid chapter");
-    const client = String(request.headers["x-forwarded-for"] || request.socket.remoteAddress || "unknown").split(",")[0].trim();
-    const now = Date.now();
-    if ((generatorCooldowns.get(client) || 0) > now - 8_000) {
-      response.setHeader("Retry-After", "8");
-      json(response, 429, { error: "Please wait a few seconds before generating another question" });
-      return true;
+  if (pathname === "/api/questions/current" && request.method === "GET") {
+    json(response, 200, await generatorState());
+    return true;
+  }
+  if (pathname === "/api/questions/chapters" && request.method === "PUT") {
+    const chapters = validateGeneratorChapters((await readJson(request)).chapters);
+    await pool.query(
+      `UPDATE public.generator_state
+       SET chapters = $1, status = 'idle', question = NULL, generation_id = NULL, error = NULL, updated_at = now()
+       WHERE id = 1`,
+      [chapters]
+    );
+    await startQuestionGeneration();
+    json(response, 202, await generatorState());
+    return true;
+  }
+  if (pathname === "/api/questions/answer" && request.method === "POST") {
+    const selected = [...new Set((await readJson(request)).selected || [])].sort();
+    if (!selected.length || !selected.every((letter) => /^[A-H]$/.test(letter))) throw new Error("Select at least one answer");
+    const client = await pool.connect();
+    let question;
+    try {
+      await client.query("BEGIN");
+      const result = await client.query("SELECT question FROM public.generator_state WHERE id = 1 FOR UPDATE");
+      question = result.rows[0]?.question;
+      if (!question) {
+        await client.query("ROLLBACK");
+        json(response, 409, { error: "This question is no longer available" });
+        return true;
+      }
+      await client.query(
+        `UPDATE public.generator_state
+         SET status = 'idle', question = NULL, generation_id = NULL, error = NULL, updated_at = now()
+         WHERE id = 1`
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
-    generatorCooldowns.set(client, now);
-    json(response, 200, await generateQuestion(chapters));
+    await startQuestionGeneration();
+    const answerKey = [...question.correct].sort();
+    json(response, 200, {
+      correct: selected.length === answerKey.length && selected.every((letter, index) => letter === answerKey[index]),
+      answerKey,
+      explanation: question.explanation,
+    });
     return true;
   }
   return false;
@@ -365,7 +466,21 @@ const server = createServer(async (request, response) => {
   }
 });
 
-await pool.query("SELECT 1");
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS public.generator_state (
+    id smallint PRIMARY KEY CHECK (id = 1),
+    chapters integer[] NOT NULL DEFAULT ARRAY[1],
+    status text NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'generating', 'ready', 'error')),
+    question jsonb,
+    generation_id text,
+    error text,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  );
+  INSERT INTO public.generator_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+  UPDATE public.generator_state SET status = 'idle', generation_id = NULL
+  WHERE id = 1 AND status = 'generating';
+`);
+await startQuestionGeneration();
 server.listen(port, () => {
   console.log(`Java 21 Review Lab: http://localhost:${port}`);
   console.log("Progress database: Supabase Postgres");
