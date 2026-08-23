@@ -6,7 +6,7 @@ const state = {
   selections: new Set(),
   progress: {},
 };
-const CONTENT_VERSION = "14";
+const CONTENT_VERSION = "15";
 
 const flash = {
   activeSection: "review",
