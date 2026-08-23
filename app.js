@@ -6,13 +6,14 @@ const state = {
   selections: new Set(),
   progress: {},
 };
-const CONTENT_VERSION = "13";
+const CONTENT_VERSION = "14";
 
 const flash = {
   activeSection: "review",
   collections: {
     java: { decks: [], deckIndex: 0, cardId: null, flipped: false, progress: {}, clock: 0 },
     g1: { decks: [], deckIndex: 0, cardId: null, flipped: false, progress: {}, clock: 0 },
+    sanctions: { decks: [], deckIndex: 0, cardId: null, flipped: false, progress: {}, clock: 0 },
   },
 };
 
@@ -315,9 +316,10 @@ function parseFlashcardMarkdown(markdown, collection) {
     if (heading) {
       if (collection === "java" && !/^Chapter \d+\s+-/.test(heading)) { deck = null; continue; }
       if (collection === "g1" && !/^Part [AB]\s+—/.test(heading)) { deck = null; continue; }
+      if (collection === "sanctions" && heading !== "Sanctions deck") { deck = null; continue; }
       deck = {
-        id: collection === "java" ? heading.match(/^Chapter (\d+)/)[1] : heading.startsWith("Part A") ? "rules" : "signs",
-        title: heading.replace(/^Chapter \d+\s+-\s*/, "").replace(/^Part [AB]\s+—\s+/, ""), cards: [],
+        id: collection === "java" ? heading.match(/^Chapter (\d+)/)[1] : collection === "sanctions" ? "sanctions" : heading.startsWith("Part A") ? "rules" : "signs",
+        title: collection === "sanctions" ? "Offences and sanctions" : heading.replace(/^Chapter \d+\s+-\s*/, "").replace(/^Part [AB]\s+—\s+/, ""), cards: [],
       };
       decks.push(deck);
       continue;
@@ -325,7 +327,7 @@ function parseFlashcardMarkdown(markdown, collection) {
     if (!deck || !/^\|\s*(?:\d+|[RS]\d{3})\s*\|/.test(line)) continue;
     const cells = splitTableRow(line);
     if (collection === "java") deck.cards.push({ id: `${deck.id}-${cells[0]}`, front: cells[1], back: cells[2], note: cells[3], image: imageFrom(cells[2]) });
-    else if (deck.id === "rules") deck.cards.push({ id: cells[0], topic: cells[1], front: cells[2], back: cells[3], note: "", image: imageFrom(cells[3]) });
+    else if (deck.id === "rules" || collection === "sanctions") deck.cards.push({ id: cells[0], topic: cells[1], front: cells[2], back: cells[3], note: "", image: imageFrom(cells[3]) });
     else deck.cards.push({ id: cells[0], front: "", back: cells[2], note: "", image: imageFrom(cells[1]) });
   }
   return decks;
@@ -481,20 +483,22 @@ function renderDeckPicker(collection) {
 }
 
 async function initFlashcards() {
-  const [javaResponse, g1Response, javaContextResponse] = await Promise.all([
+  const [javaResponse, g1Response, sanctionsResponse, javaContextResponse] = await Promise.all([
     fetch(`assets/flashcards/ocp-java-21-flashcards.md?v=${CONTENT_VERSION}`),
     fetch(`Ontario_G1_Flashcards.md?v=${CONTENT_VERSION}`),
+    fetch(`Ontario_G1_Sanctions_Flashcards.md?v=${CONTENT_VERSION}`),
     fetch(`assets/flashcards/ocp-java-21-contexts.json?v=${CONTENT_VERSION}`),
   ]);
-  if (!javaResponse.ok || !g1Response.ok || !javaContextResponse.ok) throw new Error("One of the flashcard banks could not be loaded");
+  if (!javaResponse.ok || !g1Response.ok || !sanctionsResponse.ok || !javaContextResponse.ok) throw new Error("One of the flashcard banks could not be loaded");
   flash.collections.java.decks = parseFlashcardMarkdown(await javaResponse.text(), "java");
   flash.collections.g1.decks = parseFlashcardMarkdown(await g1Response.text(), "g1");
+  flash.collections.sanctions.decks = parseFlashcardMarkdown(await sanctionsResponse.text(), "sanctions");
   const javaContexts = await javaContextResponse.json();
   for (const deck of flash.collections.java.decks) {
     for (const card of deck.cards) card.context = card.image ? "" : javaContexts[card.id] || "";
   }
-  await Promise.all([loadFlashProgress("java"), loadFlashProgress("g1")]);
-  for (const collection of ["java", "g1"]) { renderDeckPicker(collection); renderFlashcard(collection); }
+  await Promise.all([loadFlashProgress("java"), loadFlashProgress("g1"), loadFlashProgress("sanctions")]);
+  for (const collection of ["java", "g1", "sanctions"]) { renderDeckPicker(collection); renderFlashcard(collection); }
 }
 
 function renderGeneratorChapters() {
@@ -532,6 +536,8 @@ function renderGeneratedQuestion() {
     </button>`;
   }).join("");
   const correct = generator.result?.correct;
+  const choiceExplanations = generator.result?.choiceExplanations || [];
+  const explanationList = choiceExplanations.length ? `<ul class="choice-explanations">${choiceExplanations.map((item) => `<li class="${item.correct ? "right" : "wrong"}"><span>${escapeHtml(item.letter)} — ${item.correct ? "Correct" : "Incorrect"}</span><p>${escapeHtml(item.explanation)}</p></li>`).join("")}</ul>` : `<p>${escapeHtml(generator.result?.explanation || "")}</p>`;
   const nextControl = generator.nextQuestion
     ? '<button id="show-next-generated" class="primary-button" type="button">Show next question →</button>'
     : '<button class="primary-button" type="button" disabled>Preparing next question…</button>';
@@ -539,7 +545,7 @@ function renderGeneratedQuestion() {
     <div class="question-meta"><span class="question-badge">Generated question</span><span class="question-type">${question.multi ? "Select all that apply" : "Select one answer"}</span></div>
     ${renderStem(question.stem)}
     <div class="choices">${choices}</div>
-    ${generator.graded ? `<div class="feedback ${correct ? "" : "wrong"}"><h2>${correct ? "Correct — nicely done." : "Not quite."}</h2><p class="answer-key">Correct answer: ${generator.result.answerKey.join(", ")}</p><p>${escapeHtml(generator.result.explanation)}</p><div class="check-row">${nextControl}</div></div>` : '<div class="check-row"><button id="check-generated-answer" class="check-button" type="button" disabled>Check answer</button></div>'}
+    ${generator.graded ? `<div class="feedback ${correct ? "" : "wrong"}"><h2>${correct ? "Correct — nicely done." : "Not quite."}</h2><p class="answer-key">Correct answer: ${generator.result.answerKey.join(", ")}</p>${explanationList}<div class="check-row">${nextControl}</div></div>` : '<div class="check-row"><button id="check-generated-answer" class="check-button" type="button" disabled>Check answer</button></div>'}
   </div>`;
   mount.querySelectorAll(".generated-choice").forEach((button) => button.addEventListener("click", () => {
     const letter = button.dataset.letter;
@@ -666,7 +672,7 @@ function closeMenu() {
 
 function switchSection(section) {
   flash.activeSection = section;
-  for (const name of ["review", "java-cards", "g1-cards", "generator"]) {
+  for (const name of ["review", "java-cards", "g1-cards", "sanctions-cards", "generator"]) {
     const sectionElement = el(`${name}-section`);
     sectionElement.hidden = name !== section;
     sectionElement.classList.toggle("active", name === section);
@@ -692,10 +698,10 @@ function initMenu() {
 function initFlashcardKeyboard() {
   document.addEventListener("keydown", (event) => {
     if ((event.code !== "Space" && event.key !== " ") || event.repeat) return;
-    if (flash.activeSection !== "java-cards" && flash.activeSection !== "g1-cards") return;
+    if (!/^(?:java|g1|sanctions)-cards$/.test(flash.activeSection)) return;
     const target = event.target instanceof Element ? event.target : null;
     if (target?.closest("input, select, textarea, a, [contenteditable='true'], button:not(.flashcard-scene)")) return;
-    const collection = flash.activeSection === "java-cards" ? "java" : "g1";
+    const collection = flash.activeSection.replace(/-cards$/, "");
     const scene = el(`${collection}-flashcards`).querySelector(".flashcard-scene");
     if (!scene) return;
     event.preventDefault();

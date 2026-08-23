@@ -63,6 +63,12 @@ button:disabled { opacity:.38; cursor:not-allowed; }
 .feedback.wrong h2 { color:var(--danger); }
 .feedback p { margin:0; color:#b9c2ca; font-size:15px; line-height:1.65; }
 .feedback .answer-key { margin-bottom:9px; color:var(--text); font:13px var(--mono); }
+.choice-explanations { display:grid; gap:12px; margin:14px 0 0; padding:0; list-style:none; }
+.choice-explanations li { padding:12px 14px; border-left:3px solid #814044; border-radius:4px; background:#190f11; }
+.choice-explanations li.right { border-left-color:#397653; background:#0d1b14; }
+.choice-explanations span { display:block; margin-bottom:4px; color:var(--danger); font:700 12px var(--mono); }
+.choice-explanations li.right span { color:var(--accent); }
+.choice-explanations li p { margin:0; }
 .loading,.error { display:grid; min-height:360px; place-items:center; color:var(--muted); font:13px var(--mono); }
 .quiz-footer { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:18px; margin-top:16px; }
 .question-dots { display:flex; justify-content:center; gap:6px; overflow:hidden; }

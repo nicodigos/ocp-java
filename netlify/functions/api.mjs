@@ -35,7 +35,7 @@ function flashcardRating(value) {
     collection: String(value.collection || ""), deck: String(value.deck || ""), cardId: String(value.cardId || ""),
     rating: String(value.rating || ""),
   };
-  if (!/^(java|g1)$/.test(item.collection)) throw new Error("Invalid collection");
+  if (!/^(java|g1|sanctions)$/.test(item.collection)) throw new Error("Invalid collection");
   if (!/^[\w-]{1,40}$/.test(item.deck) || !/^[\w-]{1,60}$/.test(item.cardId)) throw new Error("Invalid card identifier");
   if (!/^(again|known)$/.test(item.rating)) throw new Error("Invalid rating");
   return item;
@@ -80,7 +80,7 @@ export async function handler(event) {
     }
     if (route === "/flashcards/progress" && method === "GET") {
       const collection = event.queryStringParameters?.collection || "";
-      if (!/^(java|g1)$/.test(collection)) throw new Error("Invalid collection");
+      if (!/^(java|g1|sanctions)$/.test(collection)) throw new Error("Invalid collection");
       const result = await db.query("SELECT deck, card_id, mastery, seen_count, due_order, learned FROM public.flashcard_progress WHERE collection=$1", [collection]);
       return reply(200, Object.fromEntries(result.rows.map((row) => [`${row.deck}:${row.card_id}`, {
         mastery: row.mastery, seenCount: row.seen_count, dueOrder: Number(row.due_order), learned: row.learned,
@@ -101,7 +101,7 @@ export async function handler(event) {
     if (route === "/flashcards/progress" && method === "DELETE") {
       const collection = event.queryStringParameters?.collection || "";
       const deck = event.queryStringParameters?.deck || "";
-      if (!/^(java|g1)$/.test(collection) || !/^[\w-]{1,40}$/.test(deck)) throw new Error("Invalid deck");
+      if (!/^(java|g1|sanctions)$/.test(collection) || !/^[\w-]{1,40}$/.test(deck)) throw new Error("Invalid deck");
       await db.query("DELETE FROM public.flashcard_progress WHERE collection=$1 AND deck=$2", [collection, deck]);
       return reply(200, { cleared: true });
     }

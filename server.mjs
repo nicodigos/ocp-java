@@ -104,12 +104,21 @@ function validateGeneratedQuestion(value) {
   if (!value.choices.every((choice) => typeof choice.text === "string" && choice.text.trim())) throw new Error("Gemini returned an empty choice");
   if (!Array.isArray(value.correct) || !value.correct.length || !value.correct.every((letter) => letters.includes(letter))) throw new Error("Gemini returned an invalid answer key");
   if (typeof value.explanation !== "string" || value.explanation.trim().length < 10) throw new Error("Gemini returned an invalid explanation");
+  if (!Array.isArray(value.choiceExplanations) || value.choiceExplanations.length !== value.choices.length) throw new Error("Gemini returned invalid choice explanations");
+  const explanationLetters = value.choiceExplanations.map((item) => String(item?.letter || ""));
+  if (new Set(explanationLetters).size !== letters.length || !letters.every((letter) => explanationLetters.includes(letter))) throw new Error("Gemini did not explain every choice");
+  if (!value.choiceExplanations.every((item) => typeof item.explanation === "string" && item.explanation.trim().length >= 10)) throw new Error("Gemini returned an empty choice explanation");
+  const correct = [...new Set(value.correct)];
   return {
     stem: value.stem.replace(/^```(?:java)?\s*$/gim, "").trim(),
     choices: value.choices.map((choice) => ({ letter: choice.letter, text: choice.text.trim() })),
-    correct: [...new Set(value.correct)],
+    correct,
     multi: value.correct.length > 1,
     explanation: value.explanation.trim(),
+    choiceExplanations: letters.map((letter) => {
+      const item = value.choiceExplanations.find((candidate) => candidate.letter === letter);
+      return { letter, correct: correct.includes(letter), explanation: item.explanation.trim() };
+    }),
   };
 }
 
@@ -124,19 +133,20 @@ async function generateQuestion(chapters) {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style code-analysis questions. EVERY question must contain a substantive Java snippet. Ask whether it compiles, what it prints, what exception or behavior occurs, or which statements about the snippet are true. Never write a definition-only or trivia-only question. Include realistic exam traps involving types, scope, overload resolution, control flow, API contracts, exceptions, or other rules from the selected chapters. Create either one correct answer or multiple correct answers. Distractors must be plausible and require tracing or compilation analysis. The snippet must contain enough context to evaluate and must not reveal the answer. Use Java 21 semantics. Write the explanation in the style of the book's review-question appendix: state the governing rule, trace the relevant code, and discuss EVERY option by letter, explicitly saying why it is correct or incorrect. If the code fails to compile, identify the exact construct and explain why no runtime tracing occurs. The explanation must be self-contained and instructional, not merely restate the answer key. Return only the requested JSON." }] },
+      systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style code-analysis questions. EVERY question must contain a substantive Java snippet. Ask whether it compiles, what it prints, what exception or behavior occurs, or which statements about the snippet are true. Never write a definition-only or trivia-only question. Include realistic exam traps involving types, scope, overload resolution, control flow, API contracts, exceptions, or other rules from the selected chapters. Create either one correct answer or multiple correct answers. Distractors must be plausible and require tracing or compilation analysis. The snippet must contain enough context to evaluate and must not reveal the answer. Use Java 21 semantics. Write the overall explanation in the style of the book's review-question appendix: state the governing rule and trace the relevant code. Also return choiceExplanations with exactly one entry for EVERY choice, in letter order, explicitly explaining why that choice is correct or incorrect. If the code fails to compile, identify the exact construct and explain why no runtime tracing occurs. Every explanation must be self-contained and instructional, not merely restate the answer key. Return only the requested JSON." }] },
       contents: [{ role: "user", parts: [{ text: `Selected chapters: ${chapters.join(", ")}. Generate one NEW code question that combines their topics when useful. Match the difficulty and compact presentation of the supplied book examples, and match the thorough option-by-option style of their appendix answers, but do not copy or lightly paraphrase any example. The stem must visibly include Java source code.\n\n${context}` }] }],
       generationConfig: {
         thinkingConfig: { thinkingLevel: "HIGH" },
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
-          required: ["stem", "choices", "correct", "explanation"],
+          required: ["stem", "choices", "correct", "explanation", "choiceExplanations"],
           properties: {
             stem: { type: "string" },
             choices: { type: "array", minItems: 3, maxItems: 6, items: { type: "object", required: ["letter", "text"], properties: { letter: { type: "string" }, text: { type: "string" } } } },
             correct: { type: "array", minItems: 1, items: { type: "string" } },
             explanation: { type: "string" },
+            choiceExplanations: { type: "array", minItems: 3, maxItems: 6, items: { type: "object", required: ["letter", "explanation"], properties: { letter: { type: "string" }, explanation: { type: "string" } } } },
           },
         },
       },
@@ -259,7 +269,7 @@ function validateFlashRating(value) {
   const deck = String(value.deck || "");
   const cardId = String(value.cardId || "");
   const rating = String(value.rating || "");
-  if (!/^(java|g1)$/.test(collection)) throw new Error("Invalid collection");
+  if (!/^(java|g1|sanctions)$/.test(collection)) throw new Error("Invalid collection");
   if (!/^[\w-]{1,40}$/.test(deck) || !/^[\w-]{1,60}$/.test(cardId)) throw new Error("Invalid card identifier");
   if (!/^(again|known)$/.test(rating)) throw new Error("Invalid rating");
   return { collection, deck, cardId, rating };
@@ -282,7 +292,7 @@ async function handleApi(request, response, pathname) {
   if (pathname === "/api/flashcards/progress" && request.method === "GET") {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const collection = url.searchParams.get("collection");
-    if (!/^(java|g1)$/.test(collection || "")) throw new Error("Invalid collection");
+    if (!/^(java|g1|sanctions)$/.test(collection || "")) throw new Error("Invalid collection");
     const result = await pool.query(
       "SELECT deck, card_id, mastery, seen_count, due_order, learned FROM public.flashcard_progress WHERE collection = $1",
       [collection]
@@ -316,7 +326,7 @@ async function handleApi(request, response, pathname) {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const collection = url.searchParams.get("collection");
     const deck = url.searchParams.get("deck");
-    if (!/^(java|g1)$/.test(collection || "") || !/^[\w-]{1,40}$/.test(deck || "")) throw new Error("Invalid deck");
+    if (!/^(java|g1|sanctions)$/.test(collection || "") || !/^[\w-]{1,40}$/.test(deck || "")) throw new Error("Invalid deck");
     await pool.query("DELETE FROM public.flashcard_progress WHERE collection = $1 AND deck = $2", [collection, deck]);
     json(response, 200, { cleared: true });
     return true;
@@ -423,6 +433,7 @@ async function handleApi(request, response, pathname) {
       correct: selected.length === answerKey.length && selected.every((letter, index) => letter === answerKey[index]),
       answerKey,
       explanation: question.explanation,
+      choiceExplanations: question.choiceExplanations || [],
     });
     return true;
   }
