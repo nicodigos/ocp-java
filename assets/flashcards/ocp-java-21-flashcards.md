@@ -35,7 +35,7 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 27 | How do array brackets affect multi-variable declarations? | Brackets on the type apply to all variables; brackets after a name apply only to that variable. | In `int a[], b`, only `a` is an array. |
 | 28 | What does text-block closing-delimiter placement affect? | Incidental indentation and whether a trailing newline is included. | A delimiter on its own line generally preserves a final line terminator. |
 | 29 | What is the inferred type of `var`? | The initializer's compile-time type, fixed at compilation. | It is not necessarily the most general type that could hold the value. |
-| 30 | How do reachability and scope differ? | Scope controls name access; reachability controls whether an object can still be reached. | Reassignment can make an object unreachable while the variable remains in scope. |
+| 103 | What relationships, labels, and structure does the book show for text block structure? | <img src="assets/ocp-figures/figure-1-3.png" alt="Figure 1.3: Text block structure"> Figure 1.3 — Text block structure. | |
 
 ## Chapter 2 - Operators
 
@@ -70,7 +70,7 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 27 | Why does `1 < x < 10` not compile? | The first comparison returns `boolean`, which cannot be compared with `10`. | Java does not support chained relational comparisons. |
 | 28 | What value does an assignment expression produce? | The converted value assigned to the left side. | This enables chaining and can conceal side effects. |
 | 29 | How does `+=` act on a `String`? | It concatenates and assigns a new string. | The right operand is converted to text unless parentheses force earlier arithmetic. |
-| 30 | How do evaluation order and precedence differ? | Operands evaluate left to right; precedence determines grouping. | Short-circuit operators may skip the right operand. |
+| 101 | What relationships, labels, and structure does the book show for parts of a java operation? | <img src="assets/ocp-figures/figure-2-1.png" alt="Figure 2.1: Parts of a Java operation"> Figure 2.1 — Parts of a Java operation. | |
 
 ## Chapter 3 - Making Decisions
 
@@ -93,19 +93,19 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 15 | What does `break` target? | The nearest loop or switch, or a matching labeled statement. | `continue` targets loops only, not switches. |
 | 16 | What does labeled `continue` do? | Starts the next iteration of the named enclosing loop. | The label must identify an iteration statement. |
 | 17 | When may braces be omitted from an `if` or loop? | When the controlled body is exactly one statement. | Indentation never creates a block. |
-| 18 | Which reference-like values work in a traditional switch? | `String`, enums, and compatible wrappers such as `Integer`. | `boolean`, `long`, `float`, and `double` do not. |
-| 19 | May multiple case labels share one branch? | Yes, using comma-separated labels. | Duplicate equivalent labels are still illegal. |
-| 20 | How do arrow and colon switch branches differ? | Arrow branches do not fall through; colon branches can. | Do not apply fall-through reasoning to arrow syntax. |
-| 21 | What makes a switch expression exhaustive? | It handles every possible value, often with `default` or a complete enum/sealed set. | Every expression must be exhaustive. |
-| 22 | What happens when a traditional switch selector is `null`? | It normally throws `NullPointerException`. | Pattern switches can explicitly include `case null`. |
-| 23 | What is pattern dominance in switch? | An earlier pattern matches every value a later pattern could match. | A broad type before its subtype makes the subtype unreachable. |
-| 24 | What must all switch-expression result branches provide? | Values with a compatible resulting type. | A block branch uses `yield`, not `return`, to supply the value. |
-| 25 | What is the key execution difference between `while` and `do/while`? | `while` tests first; `do/while` tests after the body. | `do/while` runs at least once and requires a trailing semicolon. |
-| 26 | Can a basic `for` initializer declare multiple variables? | Yes, when they share one declared type. | Unrelated types cannot appear in the same declaration. |
-| 27 | What happens when an enhanced-for loop variable is reassigned? | Only the local loop variable changes. | It does not replace the array or collection element. |
-| 28 | Where may a label be placed? | Immediately before a statement, commonly a loop or block. | `continue label` requires that label to mark a loop. |
-| 29 | How do unlabeled `break` and `continue` differ? | `break` exits the nearest loop/switch; `continue` advances the nearest loop. | `continue` cannot target a switch alone. |
-| 30 | What does `return` do inside nested control flow? | It exits the entire method and optionally supplies a value. | It does not merely leave the nearest loop. |
+| 101 | How is the if statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-1.png" alt="Figure 3.1: Structure of an `if` statement"> Figure 3.1 — Structure of an `if` statement. | |
+| 102 | How is the else statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-2.png" alt="Figure 3.2: Structure of an `else` statement"> Figure 3.2 — Structure of an `else` statement. | |
+| 103 | What relationships, labels, and structure does the book show for pattern matching with if? | <img src="assets/ocp-figures/figure-3-3.png" alt="Figure 3.3: Pattern matching with `if`"> Figure 3.3 — Pattern matching with `if`. | |
+| 104 | What relationships, labels, and structure does the book show for classic switch statement? | <img src="assets/ocp-figures/figure-3-4.png" alt="Figure 3.4: Classic switch statement"> Figure 3.4 — Classic switch statement. | |
+| 105 | What relationships, labels, and structure does the book show for switch expression? | <img src="assets/ocp-figures/figure-3-5.png" alt="Figure 3.5: Switch expression"> Figure 3.5 — Switch expression. | |
+| 106 | What relationships, labels, and structure does the book show for switch expression with a case block and yield? | <img src="assets/ocp-figures/figure-3-6.png" alt="Figure 3.6: Switch expression with a case block and `yield`"> Figure 3.6 — Switch expression with a case block and `yield`. | |
+| 107 | What relationships, labels, and structure does the book show for pattern matching with switch? | <img src="assets/ocp-figures/figure-3-7.png" alt="Figure 3.7: Pattern matching with switch"> Figure 3.7 — Pattern matching with switch. | |
+| 108 | How is the while statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-8.png" alt="Figure 3.8: Structure of a `while` statement"> Figure 3.8 — Structure of a `while` statement. | |
+| 109 | How is the do/while statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-9.png" alt="Figure 3.9: Structure of a `do/while` statement"> Figure 3.9 — Structure of a `do/while` statement. | |
+| 110 | How is the basic for loop structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-10.png" alt="Figure 3.10: Structure of a basic `for` loop"> Figure 3.10 — Structure of a basic `for` loop. | |
+| 111 | How is the enhanced for loop structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-11.png" alt="Figure 3.11: Structure of an enhanced `for` loop"> Figure 3.11 — Structure of an enhanced `for` loop. | |
+| 112 | How is the labeled break statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-12.png" alt="Figure 3.12: Structure of a labeled `break` statement"> Figure 3.12 — Structure of a labeled `break` statement. | |
+| 113 | How is the labeled continue statement structured, including its optional and required parts? | <img src="assets/ocp-figures/figure-3-13.png" alt="Figure 3.13: Structure of a labeled `continue` statement"> Figure 3.13 — Structure of a labeled `continue` statement. | |
 
 ## Chapter 4 - Core APIs
 
@@ -140,7 +140,7 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 27 | What does `Arrays.compare()` return? | A negative, zero, or positive lexicographic comparison result. | The exact magnitude is not guaranteed to be one. |
 | 28 | What does `Arrays.mismatch()` return? | The first differing index, or `-1` if equivalent. | A length difference can mismatch at the shorter length. |
 | 29 | What are the return types of `Math.round()`? | `float` input returns `int`; `double` input returns `long`. | `ceil()` and `floor()` return `double`. |
-| 30 | How do `Period` and `Duration` differ? | `Period` is date-based; `Duration` is time-based. | Across daylight-saving changes they can produce different clock results. |
+| 103 | What relationships, labels, and structure does the book show for basic array declaration? | <img src="assets/ocp-figures/figure-4-3.png" alt="Figure 4.3: Basic array declaration"> Figure 4.3 — Basic array declaration. | |
 
 ## Chapter 5 - Methods
 
@@ -175,7 +175,7 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 27 | Which overload phase is considered last? | Varargs, after fixed-arity widening and boxing applicability. | An applicable fixed-arity method beats varargs. |
 | 28 | Can a static method be called through an instance? | Yes, though discouraged; resolution uses the reference type. | Even a null reference can appear to call a static method. |
 | 29 | What may an instance method access directly? | Both instance and static members. | Static methods have no implicit `this`. |
-| 30 | What can a method do through a copied object reference? | Mutate the shared object's state. | Reassigning the parameter still leaves the caller's variable unchanged. |
+| 101 | What relationships, labels, and structure does the book show for complete method declaration? | <img src="assets/ocp-figures/figure-5-1.png" alt="Figure 5.1: Complete method declaration"> Figure 5.1 — Complete method declaration. | |
 
 ## Chapter 6 - Class Design
 
@@ -210,7 +210,7 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 27 | Which declarations may be abstract? | Classes and instance methods, subject to modifier rules. | Constructors, fields, static methods, private methods, and final methods cannot be abstract. |
 | 28 | May an abstract class have constructors and concrete methods? | Yes. | Its constructor runs when a concrete subclass is instantiated. |
 | 29 | What happens when an abstract subclass does not implement inherited abstract methods? | It remains abstract. | The first concrete descendant must implement all remaining abstract methods. |
-| 30 | Why are defensive copies needed for immutable classes? | They prevent callers from mutating internal mutable state through shared references. | Copy both incoming mutable values and values returned by accessors where necessary. |
+| 101 | What relationships, labels, and structure does the book show for subclass and superclass declarations? | <img src="assets/ocp-figures/figure-6-1.png" alt="Figure 6.1: Subclass and superclass declarations"> Figure 6.1 — Subclass and superclass declarations. | |
 
 ## Chapter 7 - Beyond Classes
 
@@ -241,11 +241,11 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 23 | What restrictions apply to sealed direct subclasses? | Each must be `final`, `sealed`, or `non-sealed`. | Omitting all three does not compile. |
 | 24 | Where must permitted subclasses be located? | In the same module, or the same package when using the unnamed module. | Sealing is not an unrestricted cross-module relationship. |
 | 25 | What is a record's canonical constructor? | The constructor whose parameters match all components in order and type. | It cannot reduce the record's access level. |
-| 26 | Can a record explicitly extend another class or be subclassed? | No; it implicitly extends `java.lang.Record` and is final. | A record may implement interfaces. |
-| 27 | Can a record declare extra instance fields? | No; additional fields must be static. | It may declare instance methods and override generated methods. |
-| 28 | How does a static nested class relate to its enclosing instance? | It has no implicit enclosing-object reference. | It can directly access only static outer members without an outer instance. |
-| 29 | What does a member inner class carry? | An implicit reference to an instance of its enclosing class. | Creating it from elsewhere requires an outer instance. |
-| 30 | What can local and anonymous classes capture? | Final or effectively final local variables plus accessible enclosing state. | Anonymous classes have no explicit constructor declaration. |
+| 101 | What does a complete declaration for interface look like? | <img src="assets/ocp-figures/figure-7-1.png" alt="Figure 7.1: Defining an interface"> Figure 7.1 — Defining an interface. | |
+| 104 | What does a complete declaration for simple enum look like? | <img src="assets/ocp-figures/figure-7-4.png" alt="Figure 7.4: Defining a simple enum"> Figure 7.4 — Defining a simple enum. | |
+| 105 | What does a complete declaration for sealed class look like? | <img src="assets/ocp-figures/figure-7-5.png" alt="Figure 7.5: Defining a sealed class"> Figure 7.5 — Defining a sealed class. | |
+| 106 | What does a complete declaration for record look like? | <img src="assets/ocp-figures/figure-7-6.png" alt="Figure 7.6: Defining a record"> Figure 7.6 — Defining a record. | |
+| 107 | What relationships, labels, and structure does the book show for declaring a compact record constructor? | <img src="assets/ocp-figures/figure-7-7.png" alt="Figure 7.7: Declaring a compact record constructor"> Figure 7.7 — Declaring a compact record constructor. | |
 
 ## Chapter 8 - Lambdas and Functional Interfaces
 
@@ -279,8 +279,8 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 26 | What does `Consumer.andThen()` return? | A consumer that performs both actions in sequence. | If the first action throws, the second is not run. |
 | 27 | How is an unbound instance method reference invoked? | Its first functional parameter supplies the receiver object. | `String::length` needs a `String` input even though `length()` declares no parameter. |
 | 28 | How is a bound instance method reference different? | The receiver is fixed in the expression, so functional parameters map only to method arguments. | `text::startsWith` and `String::startsWith` target different arities. |
-| 29 | When is a constructor reference compatible? | When a functional method's parameters and return type match an accessible constructor. | Arrays use forms such as `String[]::new` with an integer length parameter. |
-| 30 | Why can the same lambda have different types? | Its type comes from the target functional interface at the use site. | A lambda has no standalone nominal type without target context. |
+| 101 | What relationships, labels, and structure does the book show for lambda syntax with optional parts omitted? | <img src="assets/ocp-figures/figure-8-1.png" alt="Figure 8.1: Lambda syntax with optional parts omitted"> Figure 8.1 — Lambda syntax with optional parts omitted. | |
+| 102 | What relationships, labels, and structure does the book show for lambda syntax with optional parts included? | <img src="assets/ocp-figures/figure-8-2.png" alt="Figure 8.2: Lambda syntax with optional parts included"> Figure 8.2 — Lambda syntax with optional parts included. | |
 
 ## Chapter 9 - Collections and Generics
 
@@ -382,10 +382,10 @@ Paraphrased study cards based on the full chapter content of the OCP Java SE 21 
 | 24 | How do `NumberFormat.getIntegerInstance()` and `getNumberInstance()` differ? | The integer formatter parses/formats without a fractional result; the number formatter supports fractions. | Parsing may stop at the first unrecognized character without consuming the whole string. |
 | 25 | What does a percent formatter do numerically? | It scales between a fractional value and percent display, such as `0.5` and `50%`. | Formatting `50` does not mean fifty percent; it represents five thousand percent. |
 | 26 | What compact number styles are available? | Short and long forms, such as abbreviated `1K` versus words depending on locale. | Output varies by locale and rounding rules. |
-| 27 | Are `DateTimeFormatter` instances immutable and thread-safe? | Yes. | The temporal object still must contain the fields required by the formatter. |
-| 28 | How are literal characters escaped in date/time patterns? | Enclose them in single quotes. | Unquoted letters may be interpreted as pattern symbols. |
-| 29 | What does `MessageFormat` use for substitutions? | Numbered placeholders such as `{0}` with optional formatting information. | Single quotes have escaping meaning in message patterns. |
-| 30 | After Java selects a resource-bundle family, where does key fallback occur? | Up the parent hierarchy of that selected bundle family. | It does not restart the entire locale search separately for every missing key. |
+| 102 | What is the complete annotated syntax of a try statement? | <img src="assets/ocp-figures/figure-11-2.png" alt="Figure 11.2: Syntax of a `try` statement"> Figure 11.2 — Syntax of a `try` statement. | |
+| 103 | What is the complete annotated syntax of a multi-catch block? | <img src="assets/ocp-figures/figure-11-3.png" alt="Figure 11.3: Syntax of a multi-catch block"> Figure 11.3 — Syntax of a multi-catch block. | |
+| 104 | What is the complete annotated syntax of try with finally? | <img src="assets/ocp-figures/figure-11-4.png" alt="Figure 11.4: Syntax of `try` with `finally`"> Figure 11.4 — Syntax of `try` with `finally`. | |
+| 105 | What is the complete annotated syntax of try-with-resources? | <img src="assets/ocp-figures/figure-11-5.png" alt="Figure 11.5: Syntax of try-with-resources"> Figure 11.5 — Syntax of try-with-resources. | |
 
 ## Chapter 12 - Modules
 

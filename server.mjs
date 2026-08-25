@@ -1,6 +1,7 @@
 import { createReadStream, existsSync, statSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
+import { createPrivateKey, randomUUID, sign } from "node:crypto";
 import { extname, resolve, sep } from "node:path";
 import pg from "pg";
 
@@ -16,7 +17,9 @@ function parseEnv(text) {
   );
 }
 
-const env = parseEnv(await readFile(resolve(projectRoot, ".env"), "utf8"));
+const envPath = resolve(projectRoot, ".env");
+const fileEnv = existsSync(envPath) ? parseEnv(await readFile(envPath, "utf8")) : {};
+const env = { ...fileEnv, ...process.env };
 const databaseUrl = new URL(env.DATABASE_URL);
 const pool = new pg.Pool({
   host: databaseUrl.hostname,
@@ -27,6 +30,201 @@ const pool = new pg.Pool({
   ssl: { rejectUnauthorized: false },
   max: 5,
 });
+
+let googleToken = null;
+
+function base64Url(value) {
+  return Buffer.from(value).toString("base64url");
+}
+
+function googleServiceAccount() {
+  let account;
+  try {
+    account = JSON.parse(env.GOOGLE_SERVICE_ACCOUNT_JSON || "");
+  } catch {
+    throw new Error("Question generator is not configured correctly");
+  }
+  if (!account?.client_email || !account?.private_key) throw new Error("Question generator is not configured correctly");
+  return { ...account, private_key: String(account.private_key).replace(/\\n/g, "\n") };
+}
+
+async function googleAccessToken() {
+  const now = Math.floor(Date.now() / 1000);
+  if (googleToken?.expiresAt > now + 60) return googleToken.value;
+  const account = googleServiceAccount();
+  const header = base64Url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const claims = base64Url(JSON.stringify({
+    iss: account.client_email,
+    scope: "https://www.googleapis.com/auth/cloud-platform",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  }));
+  const unsigned = `${header}.${claims}`;
+  const signature = sign("RSA-SHA256", Buffer.from(unsigned), createPrivateKey(account.private_key)).toString("base64url");
+  const response = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: `${unsigned}.${signature}` }),
+    signal: AbortSignal.timeout(20_000),
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload.access_token) throw new Error("Could not authenticate the question generator");
+  googleToken = { value: payload.access_token, expiresAt: now + Number(payload.expires_in || 3600) };
+  return googleToken.value;
+}
+
+async function chapterContext(chapters) {
+  const [manifest, markdown] = await Promise.all([
+    readFile(resolve(projectRoot, "assets/review-tests/index.json"), "utf8").then(JSON.parse),
+    readFile(resolve(projectRoot, "assets/flashcards/ocp-java-21-flashcards.md"), "utf8"),
+  ]);
+  const sections = await Promise.all(chapters.map(async (chapter) => {
+    const meta = manifest.find((item) => item.chapter === chapter);
+    const section = markdown.match(new RegExp(`^## Chapter ${chapter}[^\\n]*\\n([\\s\\S]*?)(?=^## Chapter |^## Rapid Review)`, "m"))?.[1] || "";
+    const notes = section.split(/\r?\n/).filter((line) => /^\| \d+ \|/.test(line)).join("\n").replace(/<img\b[^>]*>/gi, "").slice(0, 4_500);
+    const review = meta?.file ? await readFile(resolve(projectRoot, "assets/review-tests", meta.file), "utf8") : "";
+    const examples = review.split(/^## Question \d+\s*$/m).slice(1)
+      .map((question) => question.trim())
+      .filter((question) => /[{};]|->|\b(?:class|interface|record|enum|switch|try|for|while)\b/.test(question))
+      .slice(0, 2)
+      .join("\n\n---\n\n")
+      .slice(0, 5_000);
+    return `CHAPTER ${chapter}: ${meta?.title || "Unknown"}\nSTUDY NOTES\n${notes}\n\nBOOK REVIEW STYLE EXAMPLES WITH APPENDIX ANSWERS (never copy their question, code, or answer)\n${examples}`;
+  }));
+  return sections.join("\n\n");
+}
+
+function validateGeneratedQuestion(value) {
+  if (!value || typeof value.stem !== "string" || value.stem.trim().length < 10 || value.stem.length > 4_000) throw new Error("Gemini returned an invalid question");
+  if (!/[{};]|->|\b(?:class|interface|record|enum|switch|try|for|while)\b/.test(value.stem)) throw new Error("Gemini did not return a Java code question");
+  if (!Array.isArray(value.choices) || value.choices.length < 3 || value.choices.length > 6) throw new Error("Gemini returned invalid choices");
+  const letters = value.choices.map((choice) => String(choice?.letter || ""));
+  if (new Set(letters).size !== letters.length || !letters.every((letter, index) => letter === String.fromCharCode(65 + index))) throw new Error("Gemini returned invalid choice labels");
+  if (!value.choices.every((choice) => typeof choice.text === "string" && choice.text.trim())) throw new Error("Gemini returned an empty choice");
+  if (!Array.isArray(value.correct) || !value.correct.length || !value.correct.every((letter) => letters.includes(letter))) throw new Error("Gemini returned an invalid answer key");
+  if (typeof value.explanation !== "string" || value.explanation.trim().length < 10) throw new Error("Gemini returned an invalid explanation");
+  if (!Array.isArray(value.choiceExplanations) || value.choiceExplanations.length !== value.choices.length) throw new Error("Gemini returned invalid choice explanations");
+  const explanationLetters = value.choiceExplanations.map((item) => String(item?.letter || ""));
+  if (new Set(explanationLetters).size !== letters.length || !letters.every((letter) => explanationLetters.includes(letter))) throw new Error("Gemini did not explain every choice");
+  if (!value.choiceExplanations.every((item) => typeof item.explanation === "string" && item.explanation.trim().length >= 10)) throw new Error("Gemini returned an empty choice explanation");
+  const correct = [...new Set(value.correct)];
+  return {
+    stem: value.stem.replace(/^```(?:java)?\s*$/gim, "").trim(),
+    choices: value.choices.map((choice) => ({ letter: choice.letter, text: choice.text.trim() })),
+    correct,
+    multi: value.correct.length > 1,
+    explanation: value.explanation.trim(),
+    choiceExplanations: letters.map((letter) => {
+      const item = value.choiceExplanations.find((candidate) => candidate.letter === letter);
+      return { letter, correct: correct.includes(letter), explanation: item.explanation.trim() };
+    }),
+  };
+}
+
+async function generateQuestion(chapters) {
+  const accessToken = await googleAccessToken();
+  const project = env.GOOGLE_CLOUD_PROJECT || googleServiceAccount().project_id;
+  const location = env.GOOGLE_CLOUD_LOCATION || "global";
+  const model = env.GEMINI_MODEL || "gemini-3.1-pro-preview";
+  const endpoint = `https://aiplatform.googleapis.com/v1/projects/${encodeURIComponent(project)}/locations/${encodeURIComponent(location)}/publishers/google/models/${encodeURIComponent(model)}:generateContent`;
+  const context = await chapterContext(chapters);
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: "You write original OCP Java SE 21 exam-style code-analysis questions. EVERY question must contain a substantive Java snippet. Ask whether it compiles, what it prints, what exception or behavior occurs, or which statements about the snippet are true. Never write a definition-only or trivia-only question. Include realistic exam traps involving types, scope, overload resolution, control flow, API contracts, exceptions, or other rules from the selected chapters. Create either one correct answer or multiple correct answers. Distractors must be plausible and require tracing or compilation analysis. The snippet must contain enough context to evaluate and must not reveal the answer. Use Java 21 semantics. Write the overall explanation in the style of the book's review-question appendix: state the governing rule and trace the relevant code. Also return choiceExplanations with exactly one entry for EVERY choice, in letter order, explicitly explaining why that choice is correct or incorrect. If the code fails to compile, identify the exact construct and explain why no runtime tracing occurs. Every explanation must be self-contained and instructional, not merely restate the answer key. Return only the requested JSON." }] },
+      contents: [{ role: "user", parts: [{ text: `Selected chapters: ${chapters.join(", ")}. Generate one NEW code question that combines their topics when useful. Match the difficulty and compact presentation of the supplied book examples, and match the thorough option-by-option style of their appendix answers, but do not copy or lightly paraphrase any example. The stem must visibly include Java source code.\n\n${context}` }] }],
+      generationConfig: {
+        thinkingConfig: { thinkingLevel: "HIGH" },
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          required: ["stem", "choices", "correct", "explanation", "choiceExplanations"],
+          properties: {
+            stem: { type: "string" },
+            choices: { type: "array", minItems: 3, maxItems: 6, items: { type: "object", required: ["letter", "text"], properties: { letter: { type: "string" }, text: { type: "string" } } } },
+            correct: { type: "array", minItems: 1, items: { type: "string" } },
+            explanation: { type: "string" },
+            choiceExplanations: { type: "array", minItems: 3, maxItems: 6, items: { type: "object", required: ["letter", "explanation"], properties: { letter: { type: "string" }, explanation: { type: "string" } } } },
+          },
+        },
+      },
+    }),
+    signal: AbortSignal.timeout(180_000),
+  });
+  const payload = await response.json();
+  if (!response.ok) throw new Error(`Gemini request failed (${response.status})`);
+  const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("").trim();
+  if (!text) throw new Error("Gemini returned no question");
+  return validateGeneratedQuestion(JSON.parse(text));
+}
+
+function validateGeneratorChapters(value) {
+  const chapters = [...new Set(Array.isArray(value) ? value.map(Number) : [])].sort((a, b) => a - b);
+  if (!chapters.length || !chapters.every((chapter) => Number.isInteger(chapter) && chapter >= 1 && chapter <= 14)) {
+    throw new Error("Select at least one valid chapter");
+  }
+  return chapters;
+}
+
+function publicQuestion(question) {
+  if (!question) return null;
+  return { stem: question.stem, choices: question.choices, multi: Boolean(question.multi) };
+}
+
+function publicGeneratorState(row) {
+  return {
+    chapters: row.chapters.map(Number),
+    status: row.status,
+    question: publicQuestion(row.question),
+    error: row.status === "error" ? row.error : null,
+  };
+}
+
+async function startQuestionGeneration() {
+  const generationId = randomUUID();
+  const claimed = await pool.query(
+    `UPDATE public.generator_state
+     SET status = 'generating', question = NULL, generation_id = $1, error = NULL, updated_at = now()
+     WHERE id = 1 AND question IS NULL
+       AND (status <> 'generating' OR updated_at < now() - interval '4 minutes')
+     RETURNING chapters`,
+    [generationId]
+  );
+  if (!claimed.rowCount) return false;
+  const chapters = claimed.rows[0].chapters.map(Number);
+  void generateQuestion(chapters).then(async (question) => {
+    await pool.query(
+      `UPDATE public.generator_state
+       SET status = 'ready', question = $2::jsonb, error = NULL, updated_at = now()
+       WHERE id = 1 AND generation_id = $1`,
+      [generationId, JSON.stringify(question)]
+    );
+  }).catch(async (error) => {
+    const message = String(error?.message || "Question generation failed").slice(0, 300);
+    try {
+      await pool.query(
+        `UPDATE public.generator_state
+         SET status = 'error', generation_id = NULL, error = $2, updated_at = now()
+         WHERE id = 1 AND generation_id = $1`,
+        [generationId, message]
+      );
+    } catch (databaseError) {
+      console.error("Could not save generator failure:", databaseError.message);
+    }
+  });
+  return true;
+}
+
+async function generatorState() {
+  let result = await pool.query("SELECT chapters, status, question, error FROM public.generator_state WHERE id = 1");
+  if (!result.rows[0].question && result.rows[0].status === "idle") {
+    await startQuestionGeneration();
+    result = await pool.query("SELECT chapters, status, question, error FROM public.generator_state WHERE id = 1");
+  }
+  return publicGeneratorState(result.rows[0]);
+}
 
 const mimeTypes = {
   ".css": "text/css; charset=utf-8",
@@ -71,7 +269,7 @@ function validateFlashRating(value) {
   const deck = String(value.deck || "");
   const cardId = String(value.cardId || "");
   const rating = String(value.rating || "");
-  if (!/^(java|g1)$/.test(collection)) throw new Error("Invalid collection");
+  if (!/^(java|g1|sanctions)$/.test(collection)) throw new Error("Invalid collection");
   if (!/^[\w-]{1,40}$/.test(deck) || !/^[\w-]{1,60}$/.test(cardId)) throw new Error("Invalid card identifier");
   if (!/^(again|known)$/.test(rating)) throw new Error("Invalid rating");
   return { collection, deck, cardId, rating };
@@ -94,7 +292,7 @@ async function handleApi(request, response, pathname) {
   if (pathname === "/api/flashcards/progress" && request.method === "GET") {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const collection = url.searchParams.get("collection");
-    if (!/^(java|g1)$/.test(collection || "")) throw new Error("Invalid collection");
+    if (!/^(java|g1|sanctions)$/.test(collection || "")) throw new Error("Invalid collection");
     const result = await pool.query(
       "SELECT deck, card_id, mastery, seen_count, due_order, learned FROM public.flashcard_progress WHERE collection = $1",
       [collection]
@@ -128,7 +326,7 @@ async function handleApi(request, response, pathname) {
     const url = new URL(request.url, `http://${request.headers.host || "localhost"}`);
     const collection = url.searchParams.get("collection");
     const deck = url.searchParams.get("deck");
-    if (!/^(java|g1)$/.test(collection || "") || !/^[\w-]{1,40}$/.test(deck || "")) throw new Error("Invalid deck");
+    if (!/^(java|g1|sanctions)$/.test(collection || "") || !/^[\w-]{1,40}$/.test(deck || "")) throw new Error("Invalid deck");
     await pool.query("DELETE FROM public.flashcard_progress WHERE collection = $1 AND deck = $2", [collection, deck]);
     json(response, 200, { cleared: true });
     return true;
@@ -187,6 +385,58 @@ async function handleApi(request, response, pathname) {
     json(response, 200, { cleared: true });
     return true;
   }
+  if (pathname === "/api/questions/current" && request.method === "GET") {
+    json(response, 200, await generatorState());
+    return true;
+  }
+  if (pathname === "/api/questions/chapters" && request.method === "PUT") {
+    const chapters = validateGeneratorChapters((await readJson(request)).chapters);
+    await pool.query(
+      `UPDATE public.generator_state
+       SET chapters = $1, status = 'idle', question = NULL, generation_id = NULL, error = NULL, updated_at = now()
+       WHERE id = 1`,
+      [chapters]
+    );
+    await startQuestionGeneration();
+    json(response, 202, await generatorState());
+    return true;
+  }
+  if (pathname === "/api/questions/answer" && request.method === "POST") {
+    const selected = [...new Set((await readJson(request)).selected || [])].sort();
+    if (!selected.length || !selected.every((letter) => /^[A-H]$/.test(letter))) throw new Error("Select at least one answer");
+    const client = await pool.connect();
+    let question;
+    try {
+      await client.query("BEGIN");
+      const result = await client.query("SELECT question FROM public.generator_state WHERE id = 1 FOR UPDATE");
+      question = result.rows[0]?.question;
+      if (!question) {
+        await client.query("ROLLBACK");
+        json(response, 409, { error: "This question is no longer available" });
+        return true;
+      }
+      await client.query(
+        `UPDATE public.generator_state
+         SET status = 'idle', question = NULL, generation_id = NULL, error = NULL, updated_at = now()
+         WHERE id = 1`
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
+    await startQuestionGeneration();
+    const answerKey = [...question.correct].sort();
+    json(response, 200, {
+      correct: selected.length === answerKey.length && selected.every((letter, index) => letter === answerKey[index]),
+      answerKey,
+      explanation: question.explanation,
+      choiceExplanations: question.choiceExplanations || [],
+    });
+    return true;
+  }
   return false;
 }
 
@@ -227,7 +477,21 @@ const server = createServer(async (request, response) => {
   }
 });
 
-await pool.query("SELECT 1");
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS public.generator_state (
+    id smallint PRIMARY KEY CHECK (id = 1),
+    chapters integer[] NOT NULL DEFAULT ARRAY[1],
+    status text NOT NULL DEFAULT 'idle' CHECK (status IN ('idle', 'generating', 'ready', 'error')),
+    question jsonb,
+    generation_id text,
+    error text,
+    updated_at timestamptz NOT NULL DEFAULT now()
+  );
+  INSERT INTO public.generator_state (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+  UPDATE public.generator_state SET status = 'idle', generation_id = NULL
+  WHERE id = 1 AND status = 'generating';
+`);
+await startQuestionGeneration();
 server.listen(port, () => {
   console.log(`Java 21 Review Lab: http://localhost:${port}`);
   console.log("Progress database: Supabase Postgres");

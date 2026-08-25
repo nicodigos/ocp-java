@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Interactive chapter review for the OCP Java SE 21 Developer exam." />
     <title>Java 21 Review Lab</title>
-    <link rel="stylesheet" href="styles.css?v=18" />
+    <link rel="stylesheet" href="styles.css?v=21" />
   </head>
   <body>
     <div class="app-shell">
@@ -17,6 +17,8 @@
             <button data-section="review" class="active"><span>01</span> Java review questions</button>
             <button data-section="java-cards"><span>02</span> Java flashcards</button>
             <button data-section="g1-cards"><span>03</span> Ontario G1 flashcards</button>
+            <button data-section="sanctions-quiz"><span>04</span> Sanctions quiz</button>
+            <button data-section="generator"><span>05</span> Question generator</button>
           </nav>
         </div>
         <div id="quiz-header-actions" class="header-actions">
@@ -80,8 +82,67 @@
           </div>
           <div id="g1-flashcards" class="flashcard-mount"><div class="loading">Loading G1 flashcards…</div></div>
         </section>
+
+        <section id="sanctions-quiz-section" class="study-section quiz-section" hidden>
+          <div class="flashcard-heading">
+            <div>
+              <p class="eyebrow">Ontario G1 &middot; Sanctions</p>
+              <h1>Offences and penalties</h1>
+              <p class="section-copy">Pick the exact demerit points, suspension, impoundment, fine, or prison term the handbook sets out. Every wrong option is a real sanction borrowed from another card.</p>
+            </div>
+            <div class="overall-card">
+              <strong id="sanctions-score">0%</strong>
+              <span id="sanctions-score-detail">0 of 0 correct</span>
+            </div>
+          </div>
+
+          <div class="quiz-options">
+            <label class="quiz-option"><span>Topic</span><select id="sanctions-topic" aria-label="Filter sanction topics"></select></label>
+            <label class="quiz-option"><span>Questions</span><select id="sanctions-length" aria-label="Questions per quiz">
+              <option value="10">10 questions</option>
+              <option value="20">20 questions</option>
+              <option value="all">Whole deck</option>
+            </select></label>
+            <label class="quiz-toggle"><input type="checkbox" id="sanctions-shuffle" checked><span>Shuffle</span></label>
+            <button id="sanctions-restart" class="ghost-button" type="button">New quiz</button>
+          </div>
+
+          <section class="chapter-progress" aria-label="Quiz progress">
+            <div class="progress-track"><span id="sanctions-bar"></span></div>
+            <span id="sanctions-detail">Question 1 of 10</span>
+          </section>
+
+          <section id="sanctions-quiz" class="quiz-card" aria-live="polite">
+            <div class="loading">Loading sanctions quiz&hellip;</div>
+          </section>
+
+          <footer class="quiz-footer">
+            <button id="sanctions-previous" class="ghost-button">&larr; Previous</button>
+            <div id="sanctions-dots" class="question-dots" aria-label="Question navigation"></div>
+            <button id="sanctions-next" class="primary-button">Next question &rarr;</button>
+          </footer>
+        </section>
+
+        <section id="generator-section" class="study-section generator-section" hidden>
+          <div class="generator-heading">
+            <p class="eyebrow">Gemini · OCP Java SE 21</p>
+            <h1>Question generator</h1>
+            <p class="section-copy">Choose one or more chapters. Gemini will create a new single- or multiple-answer exam question from those topics.</p>
+          </div>
+          <form id="generator-form" class="generator-controls">
+            <div class="generator-control-heading">
+              <span>Chapters</span>
+              <div><button id="generator-select-all" class="text-button" type="button">Select all</button><button id="generator-clear" class="text-button" type="button">Clear</button></div>
+            </div>
+            <div id="generator-chapters" class="chapter-multiselect" aria-label="Select chapters"></div>
+            <button id="generate-question" class="primary-button generator-submit" type="submit">Generate question</button>
+          </form>
+          <div id="generated-question" class="generated-question" aria-live="polite">
+            <p class="generator-empty">Select chapters to create a question.</p>
+          </div>
+        </section>
       </main>
     </div>
-    <script src="app.js?v=27" defer></script>
+    <script src="app.js?v=35" defer></script>
   </body>
 </html>
